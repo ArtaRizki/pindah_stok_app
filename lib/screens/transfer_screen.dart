@@ -22,8 +22,13 @@ class _TransferScreenState extends State<TransferScreen> {
 
   Future<void> _ambilFoto() async {
     final picker = ImagePicker();
-    // imageQuality dikompres supaya base64 yang dikirim ke GAS tidak terlalu besar
-    final foto = await picker.pickImage(source: ImageSource.camera, imageQuality: 70);
+    // imageQuality dikompres dan di-resize supaya base64 yang dikirim ke GAS tidak terlalu besar (maksimal ~200-300KB)
+    final foto = await picker.pickImage(
+      source: ImageSource.camera, 
+      imageQuality: 70,
+      maxWidth: 1024,
+      maxHeight: 1024,
+    );
     if (foto != null) {
       setState(() => _fotoSuratJalan = File(foto.path));
     }
@@ -78,60 +83,139 @@ class _TransferScreenState extends State<TransferScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pindah Stok')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ListView(
+      appBar: AppBar(
+        title: const Text('Pindah Stok', style: TextStyle(fontWeight: FontWeight.w600)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            DropdownButtonFormField<String>(
-              value: _dari,
-              decoration: const InputDecoration(labelText: 'Dari Lokasi'),
-              items: widget.daftarLokasi
-                  .map((l) => DropdownMenuItem(value: l, child: Text(l)))
-                  .toList(),
-              onChanged: (v) => setState(() => _dari = v),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Detail Lokasi & Petugas', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  DropdownButtonFormField<String>(
+                    value: _dari,
+                    decoration: InputDecoration(
+                      labelText: 'Dari Lokasi',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    ),
+                    items: widget.daftarLokasi
+                        .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _dari = v),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: _ke,
+                    decoration: InputDecoration(
+                      labelText: 'Ke Lokasi',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    ),
+                    items: widget.daftarLokasi
+                        .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _ke = v),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _qtyController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Qty (Jumlah)',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _olehController,
+                    decoration: InputDecoration(
+                      labelText: 'Nama Petugas',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: _ke,
-              decoration: const InputDecoration(labelText: 'Ke Lokasi'),
-              items: widget.daftarLokasi
-                  .map((l) => DropdownMenuItem(value: l, child: Text(l)))
-                  .toList(),
-              onChanged: (v) => setState(() => _ke = v),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _qtyController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Qty'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _olehController,
-              decoration: const InputDecoration(labelText: 'Nama Petugas'),
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _ambilFoto,
-              icon: const Icon(Icons.camera_alt),
-              label: Text(_fotoSuratJalan == null ? 'Foto Surat Jalan' : 'Ganti Foto'),
-            ),
-            if (_fotoSuratJalan != null) ...[
-              const SizedBox(height: 12),
-              Image.file(_fotoSuratJalan!, height: 180),
-            ],
             const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Bukti Surat Jalan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: BorderSide(color: Theme.of(context).colorScheme.primary),
+                    ),
+                    onPressed: _ambilFoto,
+                    icon: const Icon(Icons.camera_alt),
+                    label: Text(_fotoSuratJalan == null ? 'Ambil Foto Surat Jalan' : 'Ganti Foto'),
+                  ),
+            if (_fotoSuratJalan != null) ...[
+                    const SizedBox(height: 16),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(_fotoSuratJalan!, height: 180, width: double.infinity, fit: BoxFit.cover),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                elevation: 2,
+              ),
               onPressed: _loading ? null : _submit,
               child: _loading
                   ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
                     )
-                  : const Text('Simpan'),
+                  : const Text('Simpan Transaksi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
