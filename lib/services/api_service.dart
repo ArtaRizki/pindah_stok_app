@@ -1,33 +1,56 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/models.dart';
 
+/// Exception khusus untuk error yang berasal dari API,
+/// supaya UI bisa membedakan pesan yang aman ditampilkan ke user.
+class ApiException implements Exception {
+  final String message;
+  ApiException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 class ApiService {
-  // Ganti dengan URL /exec hasil deploy Web App Google Apps Script (Code.gs)
-  static const String baseUrl =
-      'https://script.google.com/macros/s/AKfycbzhRNywLVVvm_mYIgTYWexnFz4i2FHSK__fHjdbFYVqILggRGPDXV3j-5btKUF9P7q0/exec';
-  
-  // API Key yang sama dengan di Code.gs
-  static const String apiKey = 'RAHASIA123';
+  // TODO(keamanan): baseUrl & apiKey sebaiknya tidak di-hardcode di source code
+  // (apalagi kalau repo ini pernah/akan jadi public atau di-share).
+  // Pindahkan ke --dart-define saat build, contoh:
+  //   flutter build apk --dart-define=API_BASE_URL=... --dart-define=API_KEY=...
+  // lalu baca dengan String.fromEnvironment('API_BASE_URL').
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue:
+        'https://script.google.com/macros/s/AKfycbzhRNywLVVvm_mYIgTYWexnFz4i2FHSK__fHjdbFYVqILggRGPDXV3j-5btKUF9P7q0/exec',
+  );
+
+  static const String apiKey = String.fromEnvironment(
+    'API_KEY',
+    defaultValue: 'RAHASIA123',
+  );
+
+  static const Duration _timeout = Duration(seconds: 15);
 
   static Future<List<LokasiStok>> getStok() async {
     final res = await _request('GET', '$baseUrl?action=getStok&apiKey=$apiKey');
-    final body = jsonDecode(res.body);
+    final body = _decodeJson(res.body);
     if (body['success'] != true) {
-      throw Exception(body['message'] ?? 'Gagal mengambil data stok');
+      throw ApiException(body['message'] ?? 'Gagal mengambil data stok');
     }
-    final List data = body['data'];
+    final List data = body['data'] ?? [];
     return data.map((e) => LokasiStok.fromJson(e)).toList();
   }
 
   static Future<List<RiwayatTransaksi>> getRiwayat({int limit = 50}) async {
     final res = await _request('GET', '$baseUrl?action=getRiwayat&limit=$limit&apiKey=$apiKey');
-    final body = jsonDecode(res.body);
+    final body = _decodeJson(res.body);
     if (body['success'] != true) {
-      throw Exception(body['message'] ?? 'Gagal mengambil riwayat');
+      throw ApiException(body['message'] ?? 'Gagal mengambil riwayat');
     }
-    final List data = body['data'];
+    final List data = body['data'] ?? [];
     return data.map((e) => RiwayatTransaksi.fromJson(e)).toList();
   }
 
@@ -54,13 +77,17 @@ class ApiService {
         'fotoMimeType': fotoMimeType,
       }),
     );
-    
+    return _decodeJson(res.body);
+  }
+
+  /// Decode JSON dengan pesan error yang informatif kalau response
+  /// ternyata bukan JSON (misal halaman login Google / error HTML).
+  static Map<String, dynamic> _decodeJson(String raw) {
     try {
-      return jsonDecode(res.body);
-    } catch (e) {
-      // Jika terjadi error <HTML>, tampilkan 100 karakter pertama agar kita tahu apa isi errornya (misal: Google Login, Payload Too Large, dll)
-      final errorSnippet = res.body.length > 100 ? res.body.substring(0, 100) : res.body;
-      throw Exception('Format response tidak valid (bukan JSON). Response: $errorSnippet');
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      final snippet = raw.length > 150 ? raw.substring(0, 150) : raw;
+      throw ApiException('Format response tidak valid (bukan JSON): $snippet');
     }
   }
 
@@ -71,58 +98,87 @@ class ApiService {
     Map<String, String>? headers,
     Object? body,
   }) async {
-    debugPrint('\n┌────────────────────────────────────────────────────────');
-    debugPrint('│ 🌐 API REQUEST : $method');
-    debugPrint('│ 🔗 URL         : $url');
-    if (headers != null) debugPrint('│ 📋 HEADERS     : $headers');
-    if (body != null) {
-      final bodyStr = body.toString();
-      // Potong body jika terlalu panjang (seperti base64 image)
-      if (bodyStr.length > 500) {
-        debugPrint('│ 📦 BODY        : ${bodyStr.substring(0, 500)}... (truncated)');
-      } else {
-        debugPrint('│ 📦 BODY        : $bodyStr');
-      }
-    }
-    debugPrint('└────────────────────────────────────────────────────────');
+    _log('REQUEST', method: method, url: url, headers: headers, body: body);
 
     final uri = Uri.parse(url);
     http.Response response;
     final startTime = DateTime.now();
 
     try {
-      if (method == 'POST') {
-        response = await http.post(uri, headers: headers, body: body);
-      } else if (method == 'PUT') {
-        response = await http.put(uri, headers: headers, body: body);
-      } else if (method == 'PATCH') {
-        response = await http.patch(uri, headers: headers, body: body);
-      } else if (method == 'DELETE') {
-        response = await http.delete(uri, headers: headers, body: body);
-      } else {
-        response = await http.get(uri, headers: headers);
+      response = await _send(method, uri, headers: headers, body: body).timeout(_timeout);
+
+      // Tangani redirect 302/303 dari Google Apps Script untuk request POST.
+      if (response.statusCode == 302 || response.statusCode == 303) {
+        final location = response.headers['location'];
+        if (location != null) {
+          if (kDebugMode) debugPrint('↪️ Mengikuti redirect dari Google Apps Script...');
+          response = await http.get(Uri.parse(location)).timeout(_timeout);
+        }
       }
-    } catch (e) {
-      debugPrint('\n┌────────────────────────────────────────────────────────');
-      debugPrint('│ ❌ API ERROR   : $method $url');
-      debugPrint('│ 💥 EXCEPTION   : $e');
-      debugPrint('└────────────────────────────────────────────────────────');
+    } on TimeoutException {
+      throw ApiException('Koneksi timeout, periksa jaringan internet Anda');
+    } on SocketException {
+      throw ApiException('Tidak ada koneksi internet');
+    } on ApiException {
       rethrow;
+    } catch (e) {
+      _log('ERROR', method: method, url: url, error: e);
+      throw ApiException('Gagal menghubungi server: $e');
     }
 
     final duration = DateTime.now().difference(startTime).inMilliseconds;
-    
-    debugPrint('\n┌────────────────────────────────────────────────────────');
-    debugPrint('│ 📥 API RESPONSE: $method (Status: ${response.statusCode}) - ${duration}ms');
-    debugPrint('│ 🔗 URL         : $url');
-    final respStr = response.body;
-    if (respStr.length > 1000) {
-      debugPrint('│ 📄 BODY        : ${respStr.substring(0, 1000)}... (truncated)');
-    } else {
-      debugPrint('│ 📄 BODY        : $respStr');
+    _log('RESPONSE', method: method, url: url, statusCode: response.statusCode, body: response.body, durationMs: duration);
+
+    if (response.statusCode >= 400) {
+      throw ApiException('Server merespons dengan error (${response.statusCode})');
     }
-    debugPrint('└────────────────────────────────────────────────────────\n');
 
     return response;
   }
+
+  static Future<http.Response> _send(
+    String method,
+    Uri uri, {
+    Map<String, String>? headers,
+    Object? body,
+  }) {
+    switch (method) {
+      case 'POST':
+        return http.post(uri, headers: headers, body: body);
+      case 'PUT':
+        return http.put(uri, headers: headers, body: body);
+      case 'PATCH':
+        return http.patch(uri, headers: headers, body: body);
+      case 'DELETE':
+        return http.delete(uri, headers: headers, body: body);
+      default:
+        return http.get(uri, headers: headers);
+    }
+  }
+
+  static void _log(
+    String tag, {
+    String? method,
+    String? url,
+    Map<String, String>? headers,
+    Object? body,
+    int? statusCode,
+    Object? error,
+    int? durationMs,
+  }) {
+    if (!kDebugMode) return; // Jangan buang waktu build string log di release.
+
+    final buffer = StringBuffer('\n┌─── API $tag ');
+    if (method != null) buffer.write('$method ');
+    if (statusCode != null) buffer.write('($statusCode, ${durationMs}ms) ');
+    buffer.writeln();
+    if (url != null) buffer.writeln('│ URL   : $url');
+    if (headers != null) buffer.writeln('│ HDR   : $headers');
+    if (body != null) buffer.writeln('│ BODY  : ${_truncate(body.toString(), 500)}');
+    if (error != null) buffer.writeln('│ ERROR : $error');
+    buffer.write('└───────────────────────────────────────');
+    debugPrint(buffer.toString());
+  }
+
+  static String _truncate(String s, int max) => s.length > max ? '${s.substring(0, max)}... (truncated)' : s;
 }
