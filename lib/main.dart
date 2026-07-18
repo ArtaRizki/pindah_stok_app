@@ -9,12 +9,20 @@ import 'models/models.dart';
 import 'services/api_service.dart';
 import 'screens/transfer_screen.dart';
 
-void main() {
-  runApp(const PindahStokApp());
+import 'package:shared_preferences/shared_preferences.dart';
+import 'screens/login_screen.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  final String? picName = prefs.getString('pic_name');
+  
+  runApp(PindahStokApp(initialRoute: picName != null ? '/home' : '/login'));
 }
 
 class PindahStokApp extends StatelessWidget {
-  const PindahStokApp({super.key});
+  final String initialRoute;
+  const PindahStokApp({super.key, required this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
@@ -30,8 +38,8 @@ class PindahStokApp extends StatelessWidget {
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           backgroundColor: Colors.transparent,
+          elevation: 0,
           scrolledUnderElevation: 0,
-          surfaceTintColor: Colors.transparent,
         ),
         cardTheme: CardThemeData(
           elevation: 0,
@@ -244,7 +252,7 @@ class _HomeScreenState extends State<HomeScreen> {
         endDate: endDate,
       );
       final List<List<dynamic>> rowsRiwayat = [];
-      rowsRiwayat.add(['Waktu', 'Dari', 'Ke', ...sortedItems, 'Total', 'Oleh', 'Foto Surat Jalan']);
+      rowsRiwayat.add(['Waktu', 'Dari', 'Ke', ...sortedItems, 'Total', 'PIC', 'Foto Surat Jalan']);
 
       for (final r in riwayatList) {
         final List<dynamic> row = [
@@ -293,6 +301,16 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'Muat ulang',
             onPressed: _loading ? null : () => _muatData(),
             icon: const Icon(Icons.refresh_rounded),
+          ),
+          IconButton(
+            tooltip: 'Logout',
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('pic_name');
+              if (!mounted) return;
+              Navigator.pushReplacementNamed(context, '/login');
+            },
+            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
           ),
         ],
       ),

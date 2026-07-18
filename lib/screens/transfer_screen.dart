@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import '../services/api_service.dart';
 
@@ -16,7 +18,6 @@ class TransferScreen extends StatefulWidget {
 
 class _TransferScreenState extends State<TransferScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _olehController = TextEditingController();
 
   final List<String> _jenisList = jenisFiberBox.toList();
 
@@ -32,10 +33,26 @@ class _TransferScreenState extends State<TransferScreen> {
   
   bool _tambahLokasiBaru = false;
   final _lokasiBaruController = TextEditingController();
+  
+  String _picName = 'Tidak diketahui';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPicName();
+  }
+
+  Future<void> _loadPicName() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _picName = prefs.getString('pic_name') ?? 'Tidak diketahui';
+      });
+    }
+  }
 
   @override
   void dispose() {
-    _olehController.dispose();
     _lokasiBaruController.dispose();
     for (final c in _qtyControllers.values) {
       c.dispose();
@@ -158,10 +175,8 @@ class _TransferScreenState extends State<TransferScreen> {
         dari:        _dari!,
         ke:          tujuanAkhir,
         quantities:  _quantities,
-        oleh: _olehController.text.trim().isEmpty
-            ? 'Tidak diketahui'
-            : _olehController.text.trim(),
-        fotoBase64: fotoBase64,
+        oleh:        _picName,
+        fotoBase64:  fotoBase64,
         fotoMimeType: 'image/jpeg',
       );
 
@@ -209,10 +224,7 @@ class _TransferScreenState extends State<TransferScreen> {
           children: [
             _baris('Dari',     _dari ?? '-'),
             _baris('Ke',       _tambahLokasiBaru ? _lokasiBaruController.text.trim() : (_ke ?? '-')),
-            _baris('Petugas',  _olehController.text.trim().isEmpty
-                  ? 'Tidak diketahui'
-                  : _olehController.text.trim(),
-            ),
+            _baris('PIC',      _picName),
             const Divider(height: 20),
             const Text(
               'Barang dipindahkan:',
@@ -342,15 +354,6 @@ class _TransferScreenState extends State<TransferScreen> {
                     validator: (v) => v == null || v.trim().isEmpty ? 'Wajib diisi' : null,
                   ),
                 ],
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _olehController,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: _inputDecoration(
-                    'Nama Petugas (Opsional)',
-                    Icons.person_outline,
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 24),

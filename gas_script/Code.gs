@@ -14,7 +14,7 @@ const SHEET_TRANSAKSI = 'Transaksi';
 const FOLDER_FOTO_ID  = '1PwYsdZOpSb_0lOldRvLp-i-no16KVIhB';
 
 const INITIAL_JENIS_FIBER = ['DRB KUNING', 'DRB ORANGE', 'MSU', 'GAS', 'GLOBAL', 'SCI'];
-const FIXED_TRX_COLS = ['Timestamp', 'Dari', 'Ke', 'Oleh', 'FotoURL'];
+const FIXED_TRX_COLS = ['Timestamp', 'Dari', 'Ke', 'PIC', 'FotoURL'];
 
 function doGet(e) {
   try {
@@ -102,7 +102,7 @@ function getRiwayat(limit, startDateStr, endDateStr) {
   const tsIdx = headers.indexOf('Timestamp');
   const dariIdx = headers.indexOf('Dari');
   const keIdx = headers.indexOf('Ke');
-  const olehIdx = headers.indexOf('Oleh');
+  const olehIdx = headers.indexOf('PIC');
   const fotoIdx = headers.indexOf('FotoURL');
   
   const startDate = startDateStr ? new Date(startDateStr) : null;
@@ -244,7 +244,7 @@ function prosesPindahStok(body) {
     newRowTrx[trxHeader.indexOf('Timestamp')] = new Date();
     newRowTrx[trxHeader.indexOf('Dari')] = dari;
     newRowTrx[trxHeader.indexOf('Ke')] = ke;
-    newRowTrx[trxHeader.indexOf('Oleh')] = oleh;
+    newRowTrx[trxHeader.indexOf('PIC')] = oleh;
     newRowTrx[trxHeader.indexOf('FotoURL')] = fotoUrl;
     
     for (const item of itemsDipindah) {
