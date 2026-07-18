@@ -148,14 +148,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _exportCSV() async {
     try {
-      final List<List<dynamic>> rows = [];
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Menyiapkan file export...')));
+
+      // 1. Siapkan file Rekap Stok (Snapshot)
+      final List<List<dynamic>> rowsStok = [];
       final Set<String> itemTypes = {};
       for (final s in _stok) {
         itemTypes.addAll(s.items.keys);
       }
       final sortedItems = itemTypes.toList()..sort();
       
-      rows.add(['Lokasi', ...sortedItems, 'Total']);
+      rowsStok.add(['Lokasi', ...sortedItems, 'Total']);
       
       for (final s in _stok) {
         final row = [s.lokasi];
@@ -163,16 +167,47 @@ class _HomeScreenState extends State<HomeScreen> {
           row.add(s.items[item] ?? 0);
         }
         row.add(s.totalQty);
-        rows.add(row);
+        rowsStok.add(row);
       }
       
-      String csv = const ListToCsvConverter().convert(rows);
-      
+      final csvStok = const ListToCsvConverter().convert(rowsStok);
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/Rekap_Stok_${DateTime.now().millisecondsSinceEpoch}.csv');
-      await file.writeAsString(csv);
-      
-      await Share.shareXFiles([XFile(file.path)], text: 'Rekapan Stok Terkini');
+      final fileStok = File('${dir.path}/Rekap_Stok_${DateTime.now().millisecondsSinceEpoch}.csv');
+      await fileStok.writeAsString(csvStok);
+
+      // 2. Ambil data Riwayat Transaksi (Limit 1000)
+      final riwayatList = await ApiService.getRiwayat(limit: 1000);
+      final List<List<dynamic>> rowsRiwayat = [];
+      rowsRiwayat.add(['Waktu', 'Dari', 'Ke', ...sortedItems, 'Total', 'Oleh', 'Foto Surat Jalan']);
+
+      for (final r in riwayatList) {
+        final row = [
+          DateFormat('yyyy-MM-dd HH:mm:ss').format(r.timestamp),
+          r.dari,
+          r.ke,
+        ];
+        for (final item in sortedItems) {
+          row.add(r.items[item] ?? 0);
+        }
+        row.addAll([
+          r.totalQty,
+          r.oleh,
+          r.fotoUrl,
+        ]);
+        rowsRiwayat.add(row);
+      }
+
+      final csvRiwayat = const ListToCsvConverter().convert(rowsRiwayat);
+      final fileRiwayat = File('${dir.path}/Rincian_Transaksi_${DateTime.now().millisecondsSinceEpoch}.csv');
+      await fileRiwayat.writeAsString(csvRiwayat);
+
+      // 3. Share kedua file
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      await Share.shareXFiles(
+        [XFile(fileStok.path), XFile(fileRiwayat.path)], 
+        text: 'Laporan Pindah Stok',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal export: $e')));
