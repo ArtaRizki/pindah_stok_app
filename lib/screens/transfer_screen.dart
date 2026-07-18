@@ -288,9 +288,7 @@ class _TransferScreenState extends State<TransferScreen> {
             _buildCard(
               children: [
                 DropdownButtonFormField<String>(
-                  value: _dari,
-                  // ignore: deprecated_member_use
-                  // In some newer flutter versions, value in DropdownButtonFormField triggers a warning, but initialValue doesn't rebuild correctly on setState without keys. Leaving as value.
+                  initialValue: _dari,
                   decoration: _inputDecoration(
                     'Dari Lokasi',
                     Icons.upload_outlined,
@@ -306,8 +304,7 @@ class _TransferScreenState extends State<TransferScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _ke,
-                  // ignore: deprecated_member_use
+                  initialValue: _ke,
                   decoration: _inputDecoration(
                     'Ke Lokasi',
                     Icons.download_outlined,

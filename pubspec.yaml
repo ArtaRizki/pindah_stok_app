@@ -38,6 +38,9 @@ dependencies:
   image_picker: ^1.2.3
   google_fonts: ^8.2.0
   intl: ^0.20.3
+  path_provider: ^2.1.6
+  share_plus: ^13.2.1
+  csv: ^8.0.0
 
 dev_dependencies:
   flutter_test:
