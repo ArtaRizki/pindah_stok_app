@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -8,9 +8,9 @@ import 'package:share_plus/share_plus.dart';
 import 'models/models.dart';
 import 'services/api_service.dart';
 import 'screens/transfer_screen.dart';
-
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
+import 'screens/riwayat_transaksi_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -301,6 +301,16 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Stok Fiber Box', style: TextStyle(fontWeight: FontWeight.w600)),
         actions: [
+          IconButton(
+            tooltip: 'Riwayat Transaksi',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RiwayatTransaksiScreen()),
+              );
+            },
+            icon: const Icon(Icons.history_rounded),
+          ),
           IconButton(
             tooltip: 'Muat ulang',
             onPressed: _loading ? null : () => _muatData(),

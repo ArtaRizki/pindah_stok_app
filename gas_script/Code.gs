@@ -263,8 +263,15 @@ function prosesPindahStok(body) {
     
     for (const item of itemsDipindah) {
       if (trxHeader.indexOf(item.jenis) === -1) {
-         trxHeader.push(item.jenis);
-         trxSheet.getRange(1, trxHeader.length).setValue(item.jenis);
+         const picIndex = trxHeader.indexOf('PIC');
+         if (picIndex !== -1) {
+           trxSheet.insertColumnBefore(picIndex + 1);
+           trxSheet.getRange(1, picIndex + 1).setValue(item.jenis);
+           trxHeader.splice(picIndex, 0, item.jenis);
+         } else {
+           trxHeader.push(item.jenis);
+           trxSheet.getRange(1, trxHeader.length).setValue(item.jenis);
+         }
       }
     }
 
