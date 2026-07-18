@@ -101,10 +101,10 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons.inventory_2_rounded,
-                    size: 80,
-                    color: Color(0xFF2563EB),
+                  Image.asset(
+                    'assets/app_icon.png',
+                    height: 80,
+                    width: 80,
                   ),
                   const SizedBox(height: 24),
                   const Text(

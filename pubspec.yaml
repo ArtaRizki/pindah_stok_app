@@ -103,3 +103,7 @@ flutter_icons:
   ios: true
   image_path: "assets/app_icon.png"
 
+
+  assets:
+    - assets/app_icon.png
+
