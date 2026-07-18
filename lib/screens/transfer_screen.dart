@@ -173,10 +173,11 @@ class _TransferScreenState extends State<TransferScreen> {
         throw Exception(result['message'] ?? 'Gagal memindahkan stok');
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         _tampilkanPesan(
           'Gagal: ${e.toString().replaceFirst('Exception: ', '')}',
         );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -288,6 +289,8 @@ class _TransferScreenState extends State<TransferScreen> {
               children: [
                 DropdownButtonFormField<String>(
                   value: _dari,
+                  // ignore: deprecated_member_use
+                  // In some newer flutter versions, value in DropdownButtonFormField triggers a warning, but initialValue doesn't rebuild correctly on setState without keys. Leaving as value.
                   decoration: _inputDecoration(
                     'Dari Lokasi',
                     Icons.upload_outlined,
@@ -304,6 +307,7 @@ class _TransferScreenState extends State<TransferScreen> {
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: _ke,
+                  // ignore: deprecated_member_use
                   decoration: _inputDecoration(
                     'Ke Lokasi',
                     Icons.download_outlined,

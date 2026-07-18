@@ -1,13 +1,10 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import 'models/models.dart';
 import 'services/api_service.dart';
 import 'screens/transfer_screen.dart';
@@ -146,6 +143,18 @@ class _HomeScreenState extends State<HomeScreen> {
     return map;
   }
 
+  String _convertToCsv(List<List<dynamic>> rows) {
+    return rows.map((row) {
+      return row.map((cell) {
+        final str = cell.toString();
+        if (str.contains(',') || str.contains('"') || str.contains('\n')) {
+          return '"${str.replaceAll('"', '""')}"';
+        }
+        return str;
+      }).join(',');
+    }).join('\n');
+  }
+
   Future<void> _exportCSV() async {
     try {
       if (!mounted) return;
@@ -162,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
       rowsStok.add(['Lokasi', ...sortedItems, 'Total']);
       
       for (final s in _stok) {
-        final row = [s.lokasi];
+        final List<dynamic> row = [s.lokasi];
         for (final item in sortedItems) {
           row.add(s.items[item] ?? 0);
         }
@@ -170,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
         rowsStok.add(row);
       }
       
-      final csvStok = const ListToCsvConverter().convert(rowsStok);
+      final csvStok = _convertToCsv(rowsStok);
       final dir = await getTemporaryDirectory();
       final fileStok = File('${dir.path}/Rekap_Stok_${DateTime.now().millisecondsSinceEpoch}.csv');
       await fileStok.writeAsString(csvStok);
@@ -181,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
       rowsRiwayat.add(['Waktu', 'Dari', 'Ke', ...sortedItems, 'Total', 'Oleh', 'Foto Surat Jalan']);
 
       for (final r in riwayatList) {
-        final row = [
+        final List<dynamic> row = [
           DateFormat('yyyy-MM-dd HH:mm:ss').format(r.timestamp),
           r.dari,
           r.ke,
@@ -197,16 +206,18 @@ class _HomeScreenState extends State<HomeScreen> {
         rowsRiwayat.add(row);
       }
 
-      final csvRiwayat = const ListToCsvConverter().convert(rowsRiwayat);
+      final csvRiwayat = _convertToCsv(rowsRiwayat);
       final fileRiwayat = File('${dir.path}/Rincian_Transaksi_${DateTime.now().millisecondsSinceEpoch}.csv');
       await fileRiwayat.writeAsString(csvRiwayat);
 
       // 3. Share kedua file
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      await Share.shareXFiles(
-        [XFile(fileStok.path), XFile(fileRiwayat.path)], 
-        text: 'Laporan Pindah Stok',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(fileStok.path), XFile(fileRiwayat.path)], 
+          text: 'Laporan Pindah Stok',
+        ),
       );
     } catch (e) {
       if (mounted) {
