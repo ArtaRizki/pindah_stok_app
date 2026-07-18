@@ -37,7 +37,8 @@ function doGet(e) {
       const limit = Number(e.parameter.limit) || 50;
       const startDate = e.parameter.startDate;
       const endDate = e.parameter.endDate;
-      return jsonResponse({ success: true, data: getRiwayat(limit, startDate, endDate) });
+      const pic = e.parameter.pic;
+      return jsonResponse({ success: true, data: getRiwayat(limit, startDate, endDate, pic) });
     }
     return jsonResponse({ success: false, message: 'Action tidak dikenal' });
   } catch (err) {
@@ -118,7 +119,7 @@ function getStok() {
     });
 }
 
-function getRiwayat(limit, startDateStr, endDateStr) {
+function getRiwayat(limit, startDateStr, endDateStr, picStr) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TRANSAKSI);
   if (!sheet) return [];
   const lastRow = sheet.getLastRow();
@@ -143,6 +144,7 @@ function getRiwayat(limit, startDateStr, endDateStr) {
     const ts = new Date(r[tsIdx]);
     if (startDate && ts < startDate) continue;
     if (endDate && ts > endDate) continue;
+    if (picStr && r[olehIdx] !== picStr) continue;
     filteredData.push(r);
   }
   

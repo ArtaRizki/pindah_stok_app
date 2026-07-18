@@ -19,12 +19,28 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
   bool _loading = false;
   String? _error;
 
+  String? _selectedPic;
+  List<String> _adminList = [];
+
   @override
   void initState() {
     super.initState();
-    // Default to last 7 days
     _endDate = DateTime.now();
     _startDate = _endDate!.subtract(const Duration(days: 7));
+    _fetchAdminAndRiwayat();
+  }
+
+  Future<void> _fetchAdminAndRiwayat() async {
+    try {
+      final admins = await ApiService.getAdmin();
+      if (mounted) {
+        setState(() {
+          _adminList = admins.map((e) => e['username'] ?? '').where((u) => u.isNotEmpty).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Gagal fetch admin: $e');
+    }
     _fetchRiwayat();
   }
 
@@ -39,6 +55,7 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
         limit: 100,
         startDate: _startDate,
         endDate: _endDate,
+        pic: _selectedPic,
       );
       if (!mounted) return;
       setState(() {
@@ -134,37 +151,78 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
       ),
       body: Column(
         children: [
-          // Info rentang tanggal
+          // Info rentang tanggal & PIC
           Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             color: Colors.white,
             width: double.infinity,
-            child: Row(
+            child: Column(
               children: [
-                const Icon(Icons.filter_alt_outlined, color: Colors.black54, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _startDate != null && _endDate != null
-                        ? '${DateFormat('dd MMM yyyy').format(_startDate!)} - ${DateFormat('dd MMM yyyy').format(_endDate!)}'
-                        : 'Semua Tanggal',
-                    style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
-                  ),
-                ),
-                if (_startDate != null)
-                  InkWell(
-                    onTap: () {
-                      setState(() {
-                        _startDate = null;
-                        _endDate = null;
-                      });
-                      _fetchRiwayat();
-                    },
-                    child: const Text(
-                      'Hapus Filter',
-                      style: TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.w500),
+                Row(
+                  children: [
+                    const Icon(Icons.filter_alt_outlined, color: Colors.black54, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _startDate != null && _endDate != null
+                            ? '${DateFormat('dd MMM yyyy').format(_startDate!)} - ${DateFormat('dd MMM yyyy').format(_endDate!)}'
+                            : 'Semua Tanggal',
+                        style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+                      ),
                     ),
-                  )
+                    if (_startDate != null)
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _startDate = null;
+                            _endDate = null;
+                          });
+                          _fetchRiwayat();
+                        },
+                        child: const Text(
+                          'Hapus Filter',
+                          style: TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                      )
+                  ],
+                ),
+                if (_adminList.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(Icons.person_outline, color: Colors.black54, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            isDense: true,
+                            hint: const Text('Semua Penginput (PIC)'),
+                            value: _selectedPic,
+                            items: [
+                              const DropdownMenuItem<String>(
+                                value: null,
+                                child: Text('Semua Penginput (PIC)', style: TextStyle(fontWeight: FontWeight.w500)),
+                              ),
+                              ..._adminList.map((String pic) {
+                                return DropdownMenuItem<String>(
+                                  value: pic,
+                                  child: Text(pic),
+                                );
+                              }),
+                            ],
+                            onChanged: (val) {
+                              setState(() {
+                                _selectedPic = val;
+                              });
+                              _fetchRiwayat();
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ]
               ],
             ),
           ),

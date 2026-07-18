@@ -60,14 +60,13 @@ class ApiService {
     int limit = 50,
     DateTime? startDate,
     DateTime? endDate,
+    String? pic,
   }) async {
-    String url = '$baseUrl?action=getRiwayat&limit=$limit&apiKey=$apiKey';
-    if (startDate != null) {
-      url += '&startDate=${startDate.toIso8601String()}';
-    }
-    if (endDate != null) {
-      url += '&endDate=${endDate.toIso8601String()}';
-    }
+    String url = '$baseUrl?action=getRiwayat&apiKey=$apiKey&limit=$limit';
+    if (startDate != null) url += '&startDate=${startDate.toIso8601String()}';
+    if (endDate != null) url += '&endDate=${endDate.toIso8601String()}';
+    if (pic != null && pic.isNotEmpty) url += '&pic=${Uri.encodeComponent(pic)}';
+
     final res = await _request('GET', url);
     final body = jsonDecode(res.body);
     if (body['success'] != true) {
