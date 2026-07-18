@@ -25,12 +25,16 @@ class _TransferScreenState extends State<TransferScreen> {
 
   String? _dari;
   String? _ke;
-  File?   _fotoSuratJalan;
-  bool    _loading = false;
+  File? _fotoSuratJalan;
+  bool _loading = false;
+  
+  bool _tambahLokasiBaru = false;
+  final _lokasiBaruController = TextEditingController();
 
   @override
   void dispose() {
     _olehController.dispose();
+    _lokasiBaruController.dispose();
     for (final c in _qtyControllers.values) {
       c.dispose();
     }
@@ -41,9 +45,9 @@ class _TransferScreenState extends State<TransferScreen> {
   // HELPERS QTY
   // ─────────────────────────────────────────────
   Map<String, int> get _quantities => {
-        for (final entry in _qtyControllers.entries)
-          entry.key: int.tryParse(entry.value.text) ?? 0,
-      };
+    for (final entry in _qtyControllers.entries)
+      entry.key: int.tryParse(entry.value.text) ?? 0,
+  };
 
   bool get _adaQtyYangDiisi => _quantities.values.any((q) => q > 0);
 
@@ -95,6 +99,15 @@ class _TransferScreenState extends State<TransferScreen> {
     final konfirmasi = await _tampilkanKonfirmasi();
     if (konfirmasi != true) return;
 
+    String tujuanAkhir = _ke!;
+    if (_tambahLokasiBaru) {
+      tujuanAkhir = _lokasiBaruController.text.trim();
+      if (tujuanAkhir.isEmpty) {
+        _tampilkanPesan('Nama lokasi baru tidak boleh kosong');
+        return;
+      }
+    }
+
     setState(() => _loading = true);
     try {
       String? fotoBase64;
@@ -105,12 +118,12 @@ class _TransferScreenState extends State<TransferScreen> {
 
       final result = await ApiService.pindahStok(
         dari:        _dari!,
-        ke:          _ke!,
+        ke:          tujuanAkhir,
         quantities:  _quantities,
-        oleh:        _olehController.text.trim().isEmpty
+        oleh: _olehController.text.trim().isEmpty
             ? 'Tidak diketahui'
             : _olehController.text.trim(),
-        fotoBase64:  fotoBase64,
+        fotoBase64: fotoBase64,
         fotoMimeType: 'image/jpeg',
       );
 
@@ -122,7 +135,10 @@ class _TransferScreenState extends State<TransferScreen> {
         throw Exception(result['message'] ?? 'Gagal memindahkan stok');
       }
     } catch (e) {
-      if (mounted) _tampilkanPesan('Gagal: ${e.toString().replaceFirst('Exception: ', '')}');
+      if (mounted)
+        _tampilkanPesan(
+          'Gagal: ${e.toString().replaceFirst('Exception: ', '')}',
+        );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -144,29 +160,43 @@ class _TransferScreenState extends State<TransferScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Konfirmasi Transfer', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Konfirmasi Transfer',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _baris('Dari',     _dari ?? '-'),
-            _baris('Ke',       _ke ?? '-'),
+            _baris('Ke',       _tambahLokasiBaru ? _lokasiBaruController.text.trim() : (_ke ?? '-')),
             _baris('Petugas',  _olehController.text.trim().isEmpty
-                ? 'Tidak diketahui'
-                : _olehController.text.trim()),
+                  ? 'Tidak diketahui'
+                  : _olehController.text.trim(),
+            ),
             const Divider(height: 20),
-            const Text('Barang dipindahkan:', style: TextStyle(fontWeight: FontWeight.w600)),
+            const Text(
+              'Barang dipindahkan:',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 6),
             ...qtys.map((e) => _baris(e.key, '${e.value} pcs')),
             _baris('Foto', _fotoSuratJalan == null ? 'Tidak ada' : 'Terlampir'),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
           FilledButton(
-            style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            onPressed: () => Navigator.pop(ctx, true),  
-            child: const Text('Kirim')
+            style: FilledButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Kirim'),
           ),
         ],
       ),
@@ -174,14 +204,22 @@ class _TransferScreenState extends State<TransferScreen> {
   }
 
   Widget _baris(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          children: [
-            SizedBox(width: 80, child: Text(label, style: const TextStyle(color: Colors.black54))),
-            Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600))),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(label, style: const TextStyle(color: Colors.black54)),
         ),
-      );
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    ),
+  );
 
   // ─────────────────────────────────────────────
   // BUILD
@@ -189,11 +227,14 @@ class _TransferScreenState extends State<TransferScreen> {
   @override
   Widget build(BuildContext context) {
     final opsiTujuan = widget.daftarLokasi.where((l) => l != _dari).toList();
-    final primary    = Theme.of(context).colorScheme.primary;
+    final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pindah Stok', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: const Text(
+          'Pindah Stok',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         centerTitle: true,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -209,7 +250,10 @@ class _TransferScreenState extends State<TransferScreen> {
               children: [
                 DropdownButtonFormField<String>(
                   value: _dari,
-                  decoration: _inputDecoration('Dari Lokasi', Icons.upload_outlined),
+                  decoration: _inputDecoration(
+                    'Dari Lokasi',
+                    Icons.upload_outlined,
+                  ),
                   items: widget.daftarLokasi
                       .map((l) => DropdownMenuItem(value: l, child: Text(l)))
                       .toList(),
@@ -222,18 +266,51 @@ class _TransferScreenState extends State<TransferScreen> {
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: _ke,
-                  decoration: _inputDecoration('Ke Lokasi', Icons.download_outlined),
-                  items: opsiTujuan
-                      .map((l) => DropdownMenuItem(value: l, child: Text(l)))
-                      .toList(),
-                  onChanged: (v) => setState(() => _ke = v),
+                  decoration: _inputDecoration(
+                    'Ke Lokasi',
+                    Icons.download_outlined,
+                  ),
+                  items: [
+                    ...opsiTujuan.map((l) => DropdownMenuItem(value: l, child: Text(l))),
+                    const DropdownMenuItem(
+                      value: '+ Tambah Lokasi Baru',
+                      child: Text('+ Tambah Lokasi Baru', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    setState(() {
+                      _ke = v;
+                      _tambahLokasiBaru = (v == '+ Tambah Lokasi Baru');
+                    });
+                  },
                   validator: (v) => v == null ? 'Pilih lokasi tujuan' : null,
                 ),
+                if (_tambahLokasiBaru) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _lokasiBaruController,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: _inputDecoration(
+                      'Nama Lokasi Baru',
+                      Icons.add_location_alt_outlined,
+                    ).copyWith(
+                      fillColor: Colors.blue.shade50,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.blue.shade200),
+                      ),
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Wajib diisi' : null,
+                  ),
+                ],
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _olehController,
                   textCapitalization: TextCapitalization.words,
-                  decoration: _inputDecoration('Nama Petugas (Opsional)', Icons.person_outline),
+                  decoration: _inputDecoration(
+                    'Nama Petugas (Opsional)',
+                    Icons.person_outline,
+                  ),
                 ),
               ],
             ),
@@ -244,72 +321,96 @@ class _TransferScreenState extends State<TransferScreen> {
             _buildCard(
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
-                ...jenisFiberBox.map((jenis) => Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
-                        children: [
-                          // Label badge warna
-                          Container(
-                            width: 100,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: _badgeBg(jenis),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              jenis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: _badgeFg(jenis),
+                ...jenisFiberBox.map(
+                  (jenis) => Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            // Label badge warna
+                            Container(
+                              width: 100,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 8,
                               ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          const Spacer(),
-                          // E-commerce style Qty Input
-                          Container(
-                            height: 40,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _qtyButton(Icons.remove, () => _decrementQty(jenis)),
-                                SizedBox(
-                                  width: 48,
-                                  child: TextFormField(
-                                    controller: _qtyControllers[jenis],
-                                    keyboardType: TextInputType.number,
-                                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                                    decoration: const InputDecoration(
-                                      border: InputBorder.none,
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                    ),
-                                    onTap: () {
-                                      final c = _qtyControllers[jenis]!;
-                                      if (c.text == '0') c.clear();
-                                    },
-                                  ),
+                              decoration: BoxDecoration(
+                                color: _badgeBg(jenis),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                jenis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: _badgeFg(jenis),
                                 ),
-                                _qtyButton(Icons.add, () => _incrementQty(jenis)),
-                              ],
+                                textAlign: TextAlign.center,
+                              ),
                             ),
-                          ),
-                        ],
+                            const Spacer(),
+                            // E-commerce style Qty Input
+                            Container(
+                              height: 40,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _qtyButton(
+                                    Icons.remove,
+                                    () => _decrementQty(jenis),
+                                  ),
+                                  SizedBox(
+                                    width: 48,
+                                    child: TextFormField(
+                                      controller: _qtyControllers[jenis],
+                                      keyboardType: TextInputType.number,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                      ],
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                      ),
+                                      onTap: () {
+                                        final c = _qtyControllers[jenis]!;
+                                        if (c.text == '0') c.clear();
+                                      },
+                                    ),
+                                  ),
+                                  _qtyButton(
+                                    Icons.add,
+                                    () => _incrementQty(jenis),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    if (jenis != jenisFiberBox.last)
-                      Divider(height: 1, color: Colors.grey.shade100, indent: 16, endIndent: 16),
-                  ],
-                )),
+                      if (jenis != jenisFiberBox.last)
+                        Divider(
+                          height: 1,
+                          color: Colors.grey.shade100,
+                          indent: 16,
+                          endIndent: 16,
+                        ),
+                    ],
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -325,16 +426,26 @@ class _TransferScreenState extends State<TransferScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   decoration: BoxDecoration(
                     color: primary.withValues(alpha: 0.05),
-                    border: Border.all(color: primary.withValues(alpha: 0.3), width: 1.5),
+                    border: Border.all(
+                      color: primary.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.add_a_photo_outlined, size: 36, color: primary),
+                      Icon(
+                        Icons.add_a_photo_outlined,
+                        size: 36,
+                        color: primary,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         'Ketuk untuk mengambil foto',
-                        style: TextStyle(color: primary, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          color: primary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -368,7 +479,11 @@ class _TransferScreenState extends State<TransferScreen> {
                             color: Colors.black54,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ),
@@ -394,7 +509,9 @@ class _TransferScreenState extends State<TransferScreen> {
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               backgroundColor: primary,
               foregroundColor: Theme.of(context).colorScheme.onPrimary,
               elevation: 0,
@@ -404,7 +521,10 @@ class _TransferScreenState extends State<TransferScreen> {
                 ? const SizedBox(
                     height: 24,
                     width: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
                   )
                 : const Text(
                     'Simpan Transaksi',
@@ -451,22 +571,24 @@ class _TransferScreenState extends State<TransferScreen> {
   static const _badgeColors = {
     'DRB KUNING': Color(0xFFFFF3CD),
     'DRB ORANGE': Color(0xFFFFE0CC),
-    'MSU':        Color(0xFFDCF5E3),
-    'GAS':        Color(0xFFD6EAF8),
-    'SCI':        Color(0xFFEDE7F6),
+    'MSU': Color(0xFFDCF5E3),
+    'GAS': Color(0xFFD6EAF8),
+    'SCI': Color(0xFFEDE7F6),
   };
   static const _badgeTextColors = {
     'DRB KUNING': Color(0xFF7D5A00),
     'DRB ORANGE': Color(0xFF8B3500),
-    'MSU':        Color(0xFF1A6B35),
-    'GAS':        Color(0xFF1A4E78),
-    'SCI':        Color(0xFF4A2080),
+    'MSU': Color(0xFF1A6B35),
+    'GAS': Color(0xFF1A4E78),
+    'SCI': Color(0xFF4A2080),
   };
 
-  Color _badgeBg(String jenis) => _badgeColors[jenis] ?? const Color(0xFFF5F5F5);
+  Color _badgeBg(String jenis) =>
+      _badgeColors[jenis] ?? const Color(0xFFF5F5F5);
   Color _badgeFg(String jenis) => _badgeTextColors[jenis] ?? Colors.black87;
 
-  InputDecoration _inputDecoration(String label, IconData icon) => InputDecoration(
+  InputDecoration _inputDecoration(String label, IconData icon) =>
+      InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: Colors.grey.shade400, size: 22),
         filled: true,
@@ -481,9 +603,15 @@ class _TransferScreenState extends State<TransferScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.primary,
+            width: 1.5,
+          ),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
       );
 
   Widget _buildCard({

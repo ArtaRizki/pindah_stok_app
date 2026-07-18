@@ -191,7 +191,17 @@ function prosesPindahStok(body) {
     }
 
     if (barisDari === -1) return { success: false, message: 'Lokasi asal "' + dari + '" tidak ditemukan' };
-    if (barisKe   === -1) return { success: false, message: 'Lokasi tujuan "' + ke + '" tidak ditemukan' };
+    
+    // Auto-create lokasi tujuan jika belum ada (Tambak / Lokasi Sementara)
+    if (barisKe === -1) {
+      const lokasiSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_LOKASI);
+      if (lokasiSheet) lokasiSheet.appendRow([ke]);
+      
+      const newRow = [ke, 0, 0, 0, 0, 0];
+      stokSheet.appendRow(newRow);
+      data.push(newRow);
+      barisKe = data.length - 1;
+    }
 
     // PRE-CHECK STOK (Validasi kecukupan seluruh item sebelum merubah apapun)
     for (const item of itemsDipindah) {
