@@ -198,6 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (r != null) {
                   startDate = r.start;
                   endDate = r.end;
+                  if (!ctx.mounted) return;
                   Navigator.pop(ctx, true);
                 }
               },
