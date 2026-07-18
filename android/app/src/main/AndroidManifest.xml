@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="pindah_stok_app"
+        android:label="Fiber DRB"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

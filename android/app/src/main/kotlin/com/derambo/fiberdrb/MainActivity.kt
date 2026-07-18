@@ -1,4 +1,4 @@
-package com.example.pindah_stok_app
+package com.derambo.fiberdrb
 
 import io.flutter.embedding.android.FlutterActivity
 
