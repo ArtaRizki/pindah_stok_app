@@ -77,15 +77,21 @@ function getAdmin() {
   let sheet = ss.getSheetByName(SHEET_ADMIN);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_ADMIN);
-    sheet.appendRow(['Nama Admin']);
-    sheet.getRange('A1:A1').setFontWeight('bold');
+    sheet.appendRow(['Username', 'Password']);
+    sheet.getRange('A1:B1').setFontWeight('bold');
     return [];
   }
   const data = sheet.getDataRange().getValues();
   const admins = [];
   for (let i = 1; i < data.length; i++) {
-    const nama = data[i][0];
-    if (nama) admins.push(nama.toString().trim());
+    const username = data[i][0];
+    const password = data[i][1];
+    if (username) {
+      admins.push({
+        username: username.toString().trim(),
+        password: password ? password.toString().trim() : ''
+      });
+    }
   }
   return admins;
 }

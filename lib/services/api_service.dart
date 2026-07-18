@@ -27,14 +27,17 @@ class ApiService {
   // ─────────────────────────────────────────────
   // GET: Daftar admin
   // ─────────────────────────────────────────────
-  static Future<List<String>> getAdmin() async {
+  static Future<List<Map<String, String>>> getAdmin() async {
     final res = await _request('GET', '$baseUrl?action=getAdmin&apiKey=$apiKey');
     final body = jsonDecode(res.body);
     if (body['success'] != true) {
       throw Exception(body['message'] ?? 'Gagal mengambil daftar admin');
     }
     final List data = body['data'];
-    return data.map((e) => e.toString()).toList();
+    return data.map((e) => {
+      'username': e['username']?.toString() ?? '',
+      'password': e['password']?.toString() ?? '',
+    }).toList();
   }
 
   // ─────────────────────────────────────────────

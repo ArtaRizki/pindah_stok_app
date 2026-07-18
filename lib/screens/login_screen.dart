@@ -11,11 +11,13 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  String? _selectedAdmin;
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   
-  List<String> _admins = [];
+  List<Map<String, String>> _admins = [];
   bool _loading = true;
+  bool _obscureText = true;
   String? _errorMsg;
 
   @override
@@ -45,8 +47,31 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
+      if (_loading) return;
+      if (_errorMsg != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Tidak dapat login: $_errorMsg')),
+        );
+        return;
+      }
+      
+      final username = _usernameController.text.trim();
+      final password = _passwordController.text;
+      
+      final admin = _admins.where((a) => 
+        a['username']?.toLowerCase() == username.toLowerCase() && 
+        a['password'] == password
+      ).firstOrNull;
+
+      if (admin == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Username atau password salah')),
+        );
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('pic_name', _selectedAdmin!);
+      await prefs.setString('pic_name', admin['username']!);
       
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -54,6 +79,13 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -84,7 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Pilih nama Anda sebagai PIC (Penanggung Jawab).',
+                    'Silakan masukkan Username dan Password Anda.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.black54),
                   ),
@@ -93,39 +125,50 @@ class _LoginScreenState extends State<LoginScreen> {
                     const CircularProgressIndicator()
                   else if (_errorMsg != null)
                     Text(
-                      'Gagal memuat daftar admin:\n$_errorMsg',
+                      'Gagal memuat data:\n$_errorMsg',
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: Colors.red),
                     )
                   else
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedAdmin,
-                      decoration: InputDecoration(
-                        labelText: 'Pilih Nama Anda',
-                        prefixIcon: const Icon(Icons.person_outline),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Column(
+                      children: [
+                        TextFormField(
+                          controller: _usernameController,
+                          decoration: InputDecoration(
+                            labelText: 'Username',
+                            prefixIcon: const Icon(Icons.person_outline),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Wajib diisi' : null,
                         ),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                      items: _admins.map((String name) {
-                        return DropdownMenuItem<String>(
-                          value: name,
-                          child: Text(name),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _selectedAdmin = newValue;
-                        });
-                      },
-                      validator: (v) {
-                        if (v == null || v.isEmpty) {
-                          return 'Silakan pilih nama Anda';
-                        }
-                        return null;
-                      },
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscureText,
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscureText ? Icons.visibility_off : Icons.visibility),
+                              onPressed: () {
+                                setState(() {
+                                  _obscureText = !_obscureText;
+                                });
+                              },
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
+                        ),
+                      ],
                     ),
                   const SizedBox(height: 32),
                   SizedBox(
