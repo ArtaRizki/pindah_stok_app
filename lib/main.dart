@@ -1,5 +1,11 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'models/models.dart';
@@ -132,10 +138,46 @@ class _HomeScreenState extends State<HomeScreen> {
   // Hitung total keseluruhan per jenis
   Map<String, int> get _totalPerJenis {
     final map = <String, int>{};
-    for (final jenis in jenisFiberBox) {
-      map[jenis] = _stok.fold(0, (sum, s) => sum + (s.perJenis[jenis] ?? 0));
+    for (final s in _stok) {
+      s.items.forEach((key, val) {
+        map[key] = (map[key] ?? 0) + val;
+      });
     }
     return map;
+  }
+
+  Future<void> _exportCSV() async {
+    try {
+      final List<List<dynamic>> rows = [];
+      final Set<String> itemTypes = {};
+      for (final s in _stok) {
+        itemTypes.addAll(s.items.keys);
+      }
+      final sortedItems = itemTypes.toList()..sort();
+      
+      rows.add(['Lokasi', ...sortedItems, 'Total']);
+      
+      for (final s in _stok) {
+        final row = [s.lokasi];
+        for (final item in sortedItems) {
+          row.add(s.items[item] ?? 0);
+        }
+        row.add(s.totalQty);
+        rows.add(row);
+      }
+      
+      String csv = const ListToCsvConverter().convert(rows);
+      
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/Rekap_Stok_${DateTime.now().millisecondsSinceEpoch}.csv');
+      await file.writeAsString(csv);
+      
+      await Share.shareXFiles([XFile(file.path)], text: 'Rekapan Stok Terkini');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal export: $e')));
+      }
+    }
   }
 
   @override
@@ -221,6 +263,8 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    final stokAdaIsinya = _stok.where((s) => s.totalQty > 0).toList();
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
@@ -229,15 +273,34 @@ class _HomeScreenState extends State<HomeScreen> {
         _buildSummaryCard(),
         if (_lastUpdated != null) _buildLastUpdatedLabel(),
         const SizedBox(height: 28),
-        Text(
-          'Rincian per Lokasi',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Rincian per Lokasi',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+            ),
+            TextButton.icon(
+              onPressed: _exportCSV,
+              icon: const Icon(Icons.download_rounded, size: 20),
+              label: const Text('Export CSV'),
+              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
-        ..._stok.map((s) => _buildStockCard(s)),
+        if (stokAdaIsinya.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 32),
+            child: Center(
+              child: Text('Tidak ada lokasi dengan stok > 0', style: TextStyle(color: Colors.black54)),
+            ),
+          )
+        else
+          ...stokAdaIsinya.map((s) => _buildStockCard(s)),
       ],
     );
   }
@@ -312,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
             spacing: 10,
             runSpacing: 8,
             alignment: WrapAlignment.center,
-            children: jenisFiberBox.map((jenis) {
+            children: totals.entries.where((e) => e.value > 0).map((entry) {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
@@ -322,11 +385,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   children: [
                     Text(
-                      jenis,
+                      entry.key,
                       style: const TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w500),
                     ),
                     Text(
-                      _numFormat.format(totals[jenis] ?? 0),
+                      _numFormat.format(entry.value),
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                   ],

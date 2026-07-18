@@ -18,9 +18,11 @@ class _TransferScreenState extends State<TransferScreen> {
   final _formKey = GlobalKey<FormState>();
   final _olehController = TextEditingController();
 
+  final List<String> _jenisList = jenisFiberBox.toList();
+
   // Controller untuk setiap jenis fiber box
-  final Map<String, TextEditingController> _qtyControllers = {
-    for (final j in jenisFiberBox) j: TextEditingController(text: '0'),
+  late final Map<String, TextEditingController> _qtyControllers = {
+    for (final j in _jenisList) j: TextEditingController(text: '0'),
   };
 
   String? _dari;
@@ -63,6 +65,42 @@ class _TransferScreenState extends State<TransferScreen> {
     if (val >= 0) {
       c.text = val.toString();
     }
+  }
+
+  void _tambahBarangManual() {
+    final tc = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tambah Barang Lainnya'),
+        content: TextField(
+          controller: tc,
+          textCapitalization: TextCapitalization.characters,
+          decoration: const InputDecoration(
+            hintText: 'Misal: KABEL LAN',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = tc.text.trim().toUpperCase();
+              if (val.isNotEmpty && !_jenisList.contains(val)) {
+                setState(() {
+                  _jenisList.add(val);
+                  _qtyControllers[val] = TextEditingController(text: '0');
+                });
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('Tambah'),
+          ),
+        ],
+      ),
+    );
   }
 
   // ─────────────────────────────────────────────
@@ -321,7 +359,7 @@ class _TransferScreenState extends State<TransferScreen> {
             _buildCard(
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
-                ...jenisFiberBox.map(
+                ..._jenisList.map(
                   (jenis) => Column(
                     children: [
                       Padding(
@@ -401,7 +439,7 @@ class _TransferScreenState extends State<TransferScreen> {
                           ],
                         ),
                       ),
-                      if (jenis != jenisFiberBox.last)
+                      if (jenis != _jenisList.last)
                         Divider(
                           height: 1,
                           color: Colors.grey.shade100,
@@ -409,6 +447,17 @@ class _TransferScreenState extends State<TransferScreen> {
                           endIndent: 16,
                         ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _tambahBarangManual,
+                    icon: const Icon(Icons.add_circle_outline),
+                    label: const Text('Tambah Barang Lainnya'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: primary,
+                    ),
                   ),
                 ),
               ],

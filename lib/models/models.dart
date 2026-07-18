@@ -1,9 +1,10 @@
-/// Jenis-jenis fiber box yang tersedia (urutan harus sama dengan kolom di Sheet Stok).
+/// Jenis-jenis fiber box default (Bawaan).
 const List<String> jenisFiberBox = [
   'DRB KUNING',
   'DRB ORANGE',
   'MSU',
   'GAS',
+  'GLOBAL',
   'SCI',
 ];
 
@@ -12,108 +13,86 @@ const List<String> jenisFiberBox = [
 // ─────────────────────────────────────────────
 class LokasiStok {
   final String lokasi;
-  final int drbKuning;
-  final int drbOrange;
-  final int msu;
-  final int gas;
-  final int sci;
+  final Map<String, int> items;
 
   LokasiStok({
     required this.lokasi,
-    this.drbKuning = 0,
-    this.drbOrange = 0,
-    this.msu = 0,
-    this.gas = 0,
-    this.sci = 0,
+    required this.items,
   });
 
-  /// Total semua jenis di lokasi ini.
-  int get totalQty => drbKuning + drbOrange + msu + gas + sci;
+  /// Total semua jenis barang di lokasi ini.
+  int get totalQty => items.values.fold(0, (sum, val) => sum + val);
 
-  /// Map jenis -> qty, berguna untuk tampilan iteratif.
-  Map<String, int> get perJenis => {
-        'DRB KUNING': drbKuning,
-        'DRB ORANGE': drbOrange,
-        'MSU':        msu,
-        'GAS':        gas,
-        'SCI':        sci,
-      };
+  /// Helper getter (opsional, karena `items` sudah berupa Map)
+  Map<String, int> get perJenis => items;
 
   factory LokasiStok.fromJson(Map<String, dynamic> json) {
+    final Map<String, int> parsedItems = {};
+    final rawItems = json['items'] as Map<String, dynamic>? ?? {};
+    
+    rawItems.forEach((key, value) {
+      parsedItems[key] = (value as num?)?.toInt() ?? 0;
+    });
+
     return LokasiStok(
-      lokasi:    json['lokasi']?.toString() ?? '',
-      drbKuning: (json['drbKuning'] as num?)?.toInt() ?? 0,
-      drbOrange: (json['drbOrange'] as num?)?.toInt() ?? 0,
-      msu:       (json['msu']       as num?)?.toInt() ?? 0,
-      gas:       (json['gas']       as num?)?.toInt() ?? 0,
-      sci:       (json['sci']       as num?)?.toInt() ?? 0,
+      lokasi: json['lokasi']?.toString() ?? '',
+      items: parsedItems,
     );
   }
 }
 
 // ─────────────────────────────────────────────
-// RIWAYAT TRANSAKSI (MULTI-JENIS)
+// RIWAYAT TRANSAKSI (MULTI-JENIS & DINAMIS)
 // ─────────────────────────────────────────────
 class RiwayatTransaksi {
   final DateTime timestamp;
   final String dari;
   final String ke;
-  final int drbKuning;
-  final int drbOrange;
-  final int msu;
-  final int gas;
-  final int sci;
   final String oleh;
   final String fotoUrl;
+  final Map<String, int> items;
 
   RiwayatTransaksi({
     required this.timestamp,
     required this.dari,
     required this.ke,
-    this.drbKuning = 0,
-    this.drbOrange = 0,
-    this.msu = 0,
-    this.gas = 0,
-    this.sci = 0,
     required this.oleh,
     required this.fotoUrl,
+    required this.items,
   });
 
   /// Total qty yang dipindah dalam transaksi ini.
-  int get totalQty => drbKuning + drbOrange + msu + gas + sci;
+  int get totalQty => items.values.fold(0, (sum, val) => sum + val);
 
   /// Map jenis -> qty hanya untuk jenis yang > 0 (dipakai di tampilan riwayat).
   Map<String, int> get perJenisAktif {
     final map = <String, int>{};
-    if (drbKuning > 0) map['DRB KUNING'] = drbKuning;
-    if (drbOrange > 0) map['DRB ORANGE'] = drbOrange;
-    if (msu > 0)       map['MSU']        = msu;
-    if (gas > 0)       map['GAS']        = gas;
-    if (sci > 0)       map['SCI']        = sci;
+    items.forEach((key, value) {
+      if (value > 0) map[key] = value;
+    });
     return map;
   }
 
   factory RiwayatTransaksi.fromJson(Map<String, dynamic> json) {
     DateTime ts = DateTime.now();
-    final raw = json['timestamp'];
-    if (raw is String) {
-      ts = DateTime.tryParse(raw) ?? DateTime.now();
-    } else if (raw is num) {
-      // GAS mengirim timestamp sebagai Unix ms
-      ts = DateTime.fromMillisecondsSinceEpoch(raw.toInt());
+    final rawTs = json['timestamp'];
+    if (rawTs is String) {
+      ts = DateTime.tryParse(rawTs) ?? DateTime.now();
     }
+
+    final Map<String, int> parsedItems = {};
+    final rawItems = json['items'] as Map<String, dynamic>? ?? {};
+    rawItems.forEach((key, value) {
+      parsedItems[key] = (value as num?)?.toInt() ?? 0;
+    });
 
     return RiwayatTransaksi(
       timestamp: ts,
       dari:      json['dari']?.toString() ?? '',
       ke:        json['ke']?.toString() ?? '',
-      drbKuning: (json['drbKuning'] as num?)?.toInt() ?? 0,
-      drbOrange: (json['drbOrange'] as num?)?.toInt() ?? 0,
-      msu:       (json['msu']       as num?)?.toInt() ?? 0,
-      gas:       (json['gas']       as num?)?.toInt() ?? 0,
-      sci:       (json['sci']       as num?)?.toInt() ?? 0,
-      oleh:      json['oleh']?.toString() ?? '',
+      oleh:      json['oleh']?.toString() ?? 'Tidak diketahui',
       fotoUrl:   json['fotoUrl']?.toString() ?? '',
+      items:     parsedItems,
     );
   }
 }
