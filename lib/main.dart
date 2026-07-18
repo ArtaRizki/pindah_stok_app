@@ -157,6 +157,58 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _exportCSV() async {
     try {
+      DateTime? startDate;
+      DateTime? endDate;
+
+      // Ask for date range
+      final bool? proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Export Laporan'),
+          content: const Text('Apakah Anda ingin memfilter Riwayat Transaksi berdasarkan rentang tanggal?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Semua Waktu'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final r = await showDateRangePicker(
+                  context: ctx,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now(),
+                  builder: (context, child) {
+                    return Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: ColorScheme.light(
+                          primary: const Color(0xFF2563EB),
+                          onPrimary: Colors.white,
+                          surface: Colors.white,
+                          onSurface: Colors.black,
+                        ),
+                      ),
+                      child: child!,
+                    );
+                  },
+                );
+                if (r != null) {
+                  startDate = r.start;
+                  endDate = r.end;
+                  Navigator.pop(ctx, true);
+                }
+              },
+              child: const Text('Pilih Tanggal'),
+            ),
+          ],
+        ),
+      );
+
+      if (proceed != true) return;
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Menyiapkan file export...')));
 
@@ -185,7 +237,11 @@ class _HomeScreenState extends State<HomeScreen> {
       await fileStok.writeAsString(csvStok);
 
       // 2. Ambil data Riwayat Transaksi (Limit 1000)
-      final riwayatList = await ApiService.getRiwayat(limit: 1000);
+      final riwayatList = await ApiService.getRiwayat(
+        limit: 1000, 
+        startDate: startDate, 
+        endDate: endDate,
+      );
       final List<List<dynamic>> rowsRiwayat = [];
       rowsRiwayat.add(['Waktu', 'Dari', 'Ke', ...sortedItems, 'Total', 'Oleh', 'Foto Surat Jalan']);
 

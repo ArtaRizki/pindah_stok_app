@@ -31,7 +31,9 @@ function doGet(e) {
     }
     if (action === 'getRiwayat') {
       const limit = Number(e.parameter.limit) || 50;
-      return jsonResponse({ success: true, data: getRiwayat(limit) });
+      const startDate = e.parameter.startDate;
+      const endDate = e.parameter.endDate;
+      return jsonResponse({ success: true, data: getRiwayat(limit, startDate, endDate) });
     }
     return jsonResponse({ success: false, message: 'Action tidak dikenal' });
   } catch (err) {
@@ -88,7 +90,7 @@ function getStok() {
     });
 }
 
-function getRiwayat(limit) {
+function getRiwayat(limit, startDateStr, endDateStr) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TRANSAKSI);
   if (!sheet) return [];
   const lastRow = sheet.getLastRow();
@@ -103,12 +105,25 @@ function getRiwayat(limit) {
   const olehIdx = headers.indexOf('Oleh');
   const fotoIdx = headers.indexOf('FotoURL');
   
-  const numRows = Math.min(limit, lastRow - 1);
-  const startRow = lastRow - numRows; 
+  const startDate = startDateStr ? new Date(startDateStr) : null;
+  const endDate = endDateStr ? new Date(endDateStr) : null;
+  if (endDate) endDate.setHours(23, 59, 59, 999);
+
+  const filteredData = [];
+  for (let i = 1; i < data.length; i++) {
+    const r = data[i];
+    const ts = new Date(r[tsIdx]);
+    if (startDate && ts < startDate) continue;
+    if (endDate && ts > endDate) continue;
+    filteredData.push(r);
+  }
+  
+  const numRows = Math.min(limit, filteredData.length);
+  const startRow = filteredData.length - numRows; 
   
   const result = [];
-  for (let i = data.length - 1; i >= startRow; i--) {
-    const r = data[i];
+  for (let i = filteredData.length - 1; i >= startRow; i--) {
+    const r = filteredData[i];
     const items = {};
     for (let j = 0; j < headers.length; j++) {
       const colName = headers[j];

@@ -40,8 +40,19 @@ class ApiService {
   // ─────────────────────────────────────────────
   // GET: Riwayat transaksi
   // ─────────────────────────────────────────────
-  static Future<List<RiwayatTransaksi>> getRiwayat({int limit = 50}) async {
-    final res = await _request('GET', '$baseUrl?action=getRiwayat&limit=$limit&apiKey=$apiKey');
+  static Future<List<RiwayatTransaksi>> getRiwayat({
+    int limit = 50,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    String url = '$baseUrl?action=getRiwayat&limit=$limit&apiKey=$apiKey';
+    if (startDate != null) {
+      url += '&startDate=${startDate.toIso8601String()}';
+    }
+    if (endDate != null) {
+      url += '&endDate=${endDate.toIso8601String()}';
+    }
+    final res = await _request('GET', url);
     final body = jsonDecode(res.body);
     if (body['success'] != true) {
       throw Exception(body['message'] ?? 'Gagal mengambil riwayat');
