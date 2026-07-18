@@ -312,17 +312,16 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Stok Fiber Box', style: TextStyle(fontWeight: FontWeight.w600)),
         actions: [
-          if (_role == 'superadmin')
-            IconButton(
-              tooltip: 'Riwayat Transaksi',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const RiwayatTransaksiScreen()),
-                );
-              },
-              icon: const Icon(Icons.history_rounded),
-            ),
+          IconButton(
+            tooltip: 'Riwayat Transaksi',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RiwayatTransaksiScreen()),
+              );
+            },
+            icon: const Icon(Icons.history_rounded),
+          ),
           IconButton(
             tooltip: 'Muat ulang',
             onPressed: _loading ? null : () => _muatData(),
