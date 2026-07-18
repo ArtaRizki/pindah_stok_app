@@ -38,7 +38,7 @@ class _TransferScreenState extends State<TransferScreen> {
   }
 
   // ─────────────────────────────────────────────
-  // Buat map jenis → qty dari controllers
+  // HELPERS QTY
   // ─────────────────────────────────────────────
   Map<String, int> get _quantities => {
         for (final entry in _qtyControllers.entries)
@@ -46,6 +46,20 @@ class _TransferScreenState extends State<TransferScreen> {
       };
 
   bool get _adaQtyYangDiisi => _quantities.values.any((q) => q > 0);
+
+  void _incrementQty(String jenis) {
+    final c = _qtyControllers[jenis]!;
+    final val = (int.tryParse(c.text) ?? 0) + 1;
+    c.text = val.toString();
+  }
+
+  void _decrementQty(String jenis) {
+    final c = _qtyControllers[jenis]!;
+    final val = (int.tryParse(c.text) ?? 0) - 1;
+    if (val >= 0) {
+      c.text = val.toString();
+    }
+  }
 
   // ─────────────────────────────────────────────
   // AMBIL FOTO
@@ -129,7 +143,8 @@ class _TransferScreenState extends State<TransferScreen> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Konfirmasi Transfer'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Konfirmasi Transfer', style: TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,7 +163,11 @@ class _TransferScreenState extends State<TransferScreen> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true),  child: const Text('Kirim')),
+          FilledButton(
+            style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () => Navigator.pop(ctx, true),  
+            child: const Text('Kirim')
+          ),
         ],
       ),
     );
@@ -175,180 +194,222 @@ class _TransferScreenState extends State<TransferScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pindah Stok', style: TextStyle(fontWeight: FontWeight.w600)),
+        centerTitle: true,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // ── SECTION: Lokasi & Petugas ──
-              _buildCard(
-                judul: 'Lokasi & Petugas',
-                icon: Icons.location_on_outlined,
-                children: [
-                  DropdownButtonFormField<String>(
-                    value: _dari,
-                    decoration: _inputDecoration('Dari Lokasi'),
-                    items: widget.daftarLokasi
-                        .map((l) => DropdownMenuItem(value: l, child: Text(l)))
-                        .toList(),
-                    onChanged: (v) => setState(() {
-                      _dari = v;
-                      if (_ke == v) _ke = null;
-                    }),
-                    validator: (v) => v == null ? 'Pilih lokasi asal' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _ke,
-                    decoration: _inputDecoration('Ke Lokasi'),
-                    items: opsiTujuan
-                        .map((l) => DropdownMenuItem(value: l, child: Text(l)))
-                        .toList(),
-                    onChanged: (v) => setState(() => _ke = v),
-                    validator: (v) => v == null ? 'Pilih lokasi tujuan' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _olehController,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: _inputDecoration('Nama Petugas (opsional)'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+          children: [
+            // ── SECTION: Lokasi & Petugas ──
+            _buildSectionTitle('LOKASI & PETUGAS'),
+            _buildCard(
+              children: [
+                DropdownButtonFormField<String>(
+                  value: _dari,
+                  decoration: _inputDecoration('Dari Lokasi', Icons.upload_outlined),
+                  items: widget.daftarLokasi
+                      .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                      .toList(),
+                  onChanged: (v) => setState(() {
+                    _dari = v;
+                    if (_ke == v) _ke = null;
+                  }),
+                  validator: (v) => v == null ? 'Pilih lokasi asal' : null,
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _ke,
+                  decoration: _inputDecoration('Ke Lokasi', Icons.download_outlined),
+                  items: opsiTujuan
+                      .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _ke = v),
+                  validator: (v) => v == null ? 'Pilih lokasi tujuan' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _olehController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: _inputDecoration('Nama Petugas (Opsional)', Icons.person_outline),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
 
-              // ── SECTION: Jumlah per Jenis ──
-              _buildCard(
-                judul: 'Jumlah per Jenis Fiber Box',
-                icon: Icons.inventory_2_outlined,
-                children: [
-                  const Text(
-                    'Isi jumlah yang dipindahkan (kosongkan atau isi 0 jika tidak ada)',
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
-                  ),
-                  const SizedBox(height: 16),
-                  ...jenisFiberBox.map((jenis) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          children: [
-                            // Label badge warna
-                            Container(
-                              width: 110,
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: _badgeBg(jenis),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                jenis,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: _badgeFg(jenis),
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
+            // ── SECTION: Jumlah per Jenis ──
+            _buildSectionTitle('BARANG YANG DIPINDAH'),
+            _buildCard(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              children: [
+                ...jenisFiberBox.map((jenis) => Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          // Label badge warna
+                          Container(
+                            width: 100,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _badgeBg(jenis),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            const SizedBox(width: 12),
-                            // Input qty
-                            Expanded(
-                              child: TextFormField(
-                                controller: _qtyControllers[jenis],
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                textAlign: TextAlign.center,
-                                decoration: InputDecoration(
-                                  suffixText: 'pcs',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 12,
-                                  ),
-                                ),
-                                onTap: () {
-                                  // Hapus "0" otomatis saat diklik
-                                  final c = _qtyControllers[jenis]!;
-                                  if (c.text == '0') c.clear();
-                                },
+                            child: Text(
+                              jenis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: _badgeFg(jenis),
                               ),
+                              textAlign: TextAlign.center,
                             ),
-                          ],
-                        ),
-                      )),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // ── SECTION: Bukti Surat Jalan ──
-              _buildCard(
-                judul: 'Bukti Surat Jalan',
-                icon: Icons.receipt_long_outlined,
-                children: [
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      side: BorderSide(color: primary),
-                    ),
-                    onPressed: _ambilFoto,
-                    icon: const Icon(Icons.camera_alt_outlined),
-                    label: Text(
-                      _fotoSuratJalan == null ? 'Ambil Foto Surat Jalan' : 'Ganti Foto',
-                    ),
-                  ),
-                  if (_fotoSuratJalan != null) ...[
-                    const SizedBox(height: 16),
-                    Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.file(
-                            _fotoSuratJalan!,
-                            height: 180,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
                           ),
+                          const Spacer(),
+                          // E-commerce style Qty Input
+                          Container(
+                            height: 40,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _qtyButton(Icons.remove, () => _decrementQty(jenis)),
+                                SizedBox(
+                                  width: 48,
+                                  child: TextFormField(
+                                    controller: _qtyControllers[jenis],
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                    onTap: () {
+                                      final c = _qtyControllers[jenis]!;
+                                      if (c.text == '0') c.clear();
+                                    },
+                                  ),
+                                ),
+                                _qtyButton(Icons.add, () => _incrementQty(jenis)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (jenis != jenisFiberBox.last)
+                      Divider(height: 1, color: Colors.grey.shade100, indent: 16, endIndent: 16),
+                  ],
+                )),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // ── SECTION: Bukti Surat Jalan ──
+            _buildSectionTitle('BUKTI SURAT JALAN'),
+            if (_fotoSuratJalan == null)
+              InkWell(
+                onTap: _ambilFoto,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: 0.05),
+                    border: Border.all(color: primary.withValues(alpha: 0.3), width: 1.5),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.add_a_photo_outlined, size: 36, color: primary),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Ketuk untuk mengambil foto',
+                        style: TextStyle(color: primary, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.file(
+                        _fotoSuratJalan!,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: InkWell(
+                        onTap: _hapusFoto,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
                         ),
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: _tombolHapusFoto(),
-                        ),
-                      ],
+                      ),
                     ),
                   ],
-                ],
-              ),
-              const SizedBox(height: 32),
-
-              // ── TOMBOL SIMPAN ──
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  backgroundColor: primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                  elevation: 2,
                 ),
-                onPressed: _loading ? null : _submit,
-                child: _loading
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
-                      )
-                    : const Text(
-                        'Simpan Transaksi',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
               ),
-              const SizedBox(height: 24),
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, -4),
+              ),
             ],
+          ),
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              backgroundColor: primary,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              elevation: 0,
+            ),
+            onPressed: _loading ? null : _submit,
+            child: _loading
+                ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                  )
+                : const Text(
+                    'Simpan Transaksi',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
           ),
         ),
       ),
@@ -358,6 +419,34 @@ class _TransferScreenState extends State<TransferScreen> {
   // ─────────────────────────────────────────────
   // HELPERS UI
   // ─────────────────────────────────────────────
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 10),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey.shade600,
+          letterSpacing: 1.0,
+        ),
+      ),
+    );
+  }
+
+  Widget _qtyButton(IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: 36,
+        height: 36,
+        alignment: Alignment.center,
+        child: Icon(icon, size: 20, color: Colors.grey.shade700),
+      ),
+    );
+  }
 
   static const _badgeColors = {
     'DRB KUNING': Color(0xFFFFF3CD),
@@ -377,54 +466,47 @@ class _TransferScreenState extends State<TransferScreen> {
   Color _badgeBg(String jenis) => _badgeColors[jenis] ?? const Color(0xFFF5F5F5);
   Color _badgeFg(String jenis) => _badgeTextColors[jenis] ?? Colors.black87;
 
-  Widget _tombolHapusFoto() => InkWell(
-        onTap: _hapusFoto,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-          child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
-        ),
-      );
-
-  InputDecoration _inputDecoration(String label) => InputDecoration(
+  InputDecoration _inputDecoration(String label, IconData icon) => InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        prefixIcon: Icon(icon, color: Colors.grey.shade400, size: 22),
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade200),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5),
+        ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       );
 
   Widget _buildCard({
-    required String judul,
-    required IconData icon,
     required List<Widget> children,
+    EdgeInsetsGeometry padding = const EdgeInsets.all(16),
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: padding,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 8),
-              Text(judul, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 20),
-          ...children,
-        ],
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
       ),
     );
   }
