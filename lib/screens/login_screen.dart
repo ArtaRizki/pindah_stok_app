@@ -72,6 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('pic_name', admin['username']!);
+      await prefs.setString('pic_role', admin['role'] ?? 'admin');
       
       if (!mounted) return;
       Navigator.pushReplacement(

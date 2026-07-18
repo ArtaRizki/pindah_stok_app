@@ -78,8 +78,8 @@ function getAdmin() {
   let sheet = ss.getSheetByName(SHEET_ADMIN);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_ADMIN);
-    sheet.appendRow(['Username', 'Password']);
-    sheet.getRange('A1:B1').setFontWeight('bold');
+    sheet.appendRow(['Username', 'Password', 'Role']);
+    sheet.getRange('A1:C1').setFontWeight('bold');
     return [];
   }
   const data = sheet.getDataRange().getValues();
@@ -87,10 +87,12 @@ function getAdmin() {
   for (let i = 1; i < data.length; i++) {
     const username = data[i][0];
     const password = data[i][1];
+    const role = data[i][2];
     if (username) {
       admins.push({
         username: username.toString().trim(),
-        password: password ? password.toString().trim() : ''
+        password: password ? password.toString().trim() : '',
+        role: role ? role.toString().trim().toLowerCase() : 'admin'
       });
     }
   }

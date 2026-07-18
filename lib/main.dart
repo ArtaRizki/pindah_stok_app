@@ -75,6 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _error;
   DateTime? _lastUpdated;
   Timer? _timer;
+  String _role = 'admin';
 
   final _numFormat = NumberFormat.decimalPattern('id_ID');
 
@@ -97,8 +98,18 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _muatData();
-    _timer = Timer.periodic(const Duration(seconds: 15), (_) => _muatData(silent: true));
+    _loadRole();
+    // auto-refresh 30 detik
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!_loading) _muatData();
+    });
+  }
+
+  Future<void> _loadRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _role = prefs.getString('pic_role') ?? 'admin';
+    });
   }
 
   @override
@@ -301,16 +312,17 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Stok Fiber Box', style: TextStyle(fontWeight: FontWeight.w600)),
         actions: [
-          IconButton(
-            tooltip: 'Riwayat Transaksi',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const RiwayatTransaksiScreen()),
-              );
-            },
-            icon: const Icon(Icons.history_rounded),
-          ),
+          if (_role == 'superadmin')
+            IconButton(
+              tooltip: 'Riwayat Transaksi',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RiwayatTransaksiScreen()),
+                );
+              },
+              icon: const Icon(Icons.history_rounded),
+            ),
           IconButton(
             tooltip: 'Muat ulang',
             onPressed: _loading ? null : () => _muatData(),
@@ -418,12 +430,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Colors.black87,
                   ),
             ),
-            TextButton.icon(
-              onPressed: _exportCSV,
-              icon: const Icon(Icons.download_rounded, size: 20),
-              label: const Text('Export CSV'),
-              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-            ),
+            if (_role == 'superadmin')
+              TextButton.icon(
+                onPressed: _exportCSV,
+                icon: const Icon(Icons.download_rounded, size: 20),
+                label: const Text('Export CSV'),
+                style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+              )
+            else
+              const SizedBox.shrink(),
           ],
         ),
         const SizedBox(height: 16),
