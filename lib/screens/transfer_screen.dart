@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import '../models/models.dart';
 import '../services/api_service.dart';
 
 class TransferScreen extends StatefulWidget {
@@ -15,13 +16,14 @@ class TransferScreen extends StatefulWidget {
 
 class _TransferScreenState extends State<TransferScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _qtyController = TextEditingController();
-  final _olehController = TextEditingController();
+  final _qtyController   = TextEditingController();
+  final _olehController  = TextEditingController();
 
   String? _dari;
   String? _ke;
-  File? _fotoSuratJalan;
-  bool _loading = false;
+  String? _jenis;          // Jenis fiber box yang dipindah
+  File?   _fotoSuratJalan;
+  bool    _loading = false;
 
   @override
   void dispose() {
@@ -30,10 +32,11 @@ class _TransferScreenState extends State<TransferScreen> {
     super.dispose();
   }
 
+  // ─────────────────────────────────────────────
+  // AMBIL FOTO
+  // ─────────────────────────────────────────────
   Future<void> _ambilFoto() async {
     final picker = ImagePicker();
-    // imageQuality dikompres & di-resize supaya base64 yang dikirim ke GAS
-    // tidak terlalu besar (maksimal ~200-300KB).
     final foto = await picker.pickImage(
       source: ImageSource.camera,
       imageQuality: 70,
@@ -45,9 +48,11 @@ class _TransferScreenState extends State<TransferScreen> {
 
   void _hapusFoto() => setState(() => _fotoSuratJalan = null);
 
+  // ─────────────────────────────────────────────
+  // SUBMIT
+  // ─────────────────────────────────────────────
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
     if (_dari == _ke) {
       _tampilkanPesan('Lokasi asal dan tujuan tidak boleh sama');
       return;
@@ -65,11 +70,12 @@ class _TransferScreenState extends State<TransferScreen> {
       }
 
       final result = await ApiService.pindahStok(
-        dari: _dari!,
-        ke: _ke!,
-        qty: int.parse(_qtyController.text),
-        oleh: _olehController.text.trim().isEmpty ? 'Tidak diketahui' : _olehController.text.trim(),
-        fotoBase64: fotoBase64,
+        dari:         _dari!,
+        ke:           _ke!,
+        jenis:        _jenis!,
+        qty:          int.parse(_qtyController.text),
+        oleh:         _olehController.text.trim().isEmpty ? 'Tidak diketahui' : _olehController.text.trim(),
+        fotoBase64:   fotoBase64,
         fotoMimeType: 'image/jpeg',
       );
 
@@ -106,11 +112,12 @@ class _TransferScreenState extends State<TransferScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _baris('Dari', _dari ?? '-'),
-            _baris('Ke', _ke ?? '-'),
-            _baris('Qty', '${_qtyController.text} pcs'),
+            _baris('Jenis',   _jenis ?? '-'),
+            _baris('Dari',    _dari ?? '-'),
+            _baris('Ke',      _ke ?? '-'),
+            _baris('Qty',     '${_qtyController.text} pcs'),
             _baris('Petugas', _olehController.text.trim().isEmpty ? 'Tidak diketahui' : _olehController.text.trim()),
-            _baris('Foto', _fotoSuratJalan == null ? 'Tidak ada' : 'Terlampir'),
+            _baris('Foto',    _fotoSuratJalan == null ? 'Tidak ada' : 'Terlampir'),
           ],
         ),
         actions: [
@@ -131,9 +138,11 @@ class _TransferScreenState extends State<TransferScreen> {
         ),
       );
 
+  // ─────────────────────────────────────────────
+  // BUILD
+  // ─────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // Lokasi tujuan tidak boleh sama dengan lokasi asal.
     final opsiTujuan = widget.daftarLokasi.where((l) => l != _dari).toList();
 
     return Scaffold(
@@ -147,6 +156,25 @@ class _TransferScreenState extends State<TransferScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // ── SECTION: Jenis Fiber Box ──
+              _buildCard(
+                judul: 'Jenis Fiber Box',
+                icon: Icons.category_outlined,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: _jenis,
+                    decoration: _inputDecoration('Pilih Jenis Fiber Box'),
+                    items: jenisFiberBox
+                        .map((j) => DropdownMenuItem(value: j, child: Text(j)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _jenis = v),
+                    validator: (v) => v == null ? 'Pilih jenis fiber box' : null,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // ── SECTION: Detail Lokasi & Petugas ──
               _buildCard(
                 judul: 'Detail Lokasi & Petugas',
                 icon: Icons.location_on_outlined,
@@ -154,7 +182,9 @@ class _TransferScreenState extends State<TransferScreen> {
                   DropdownButtonFormField<String>(
                     value: _dari,
                     decoration: _inputDecoration('Dari Lokasi'),
-                    items: widget.daftarLokasi.map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
+                    items: widget.daftarLokasi
+                        .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                        .toList(),
                     onChanged: (v) => setState(() {
                       _dari = v;
                       if (_ke == v) _ke = null;
@@ -165,7 +195,9 @@ class _TransferScreenState extends State<TransferScreen> {
                   DropdownButtonFormField<String>(
                     value: _ke,
                     decoration: _inputDecoration('Ke Lokasi'),
-                    items: opsiTujuan.map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
+                    items: opsiTujuan
+                        .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                        .toList(),
                     onChanged: (v) => setState(() => _ke = v),
                     validator: (v) => v == null ? 'Pilih lokasi tujuan' : null,
                   ),
@@ -189,7 +221,9 @@ class _TransferScreenState extends State<TransferScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+
+              // ── SECTION: Bukti Surat Jalan ──
               _buildCard(
                 judul: 'Bukti Surat Jalan',
                 icon: Icons.receipt_long_outlined,
@@ -210,7 +244,12 @@ class _TransferScreenState extends State<TransferScreen> {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: Image.file(_fotoSuratJalan!, height: 180, width: double.infinity, fit: BoxFit.cover),
+                          child: Image.file(
+                            _fotoSuratJalan!,
+                            height: 180,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
                         ),
                         Positioned(
                           top: 8,
@@ -223,6 +262,8 @@ class _TransferScreenState extends State<TransferScreen> {
                 ],
               ),
               const SizedBox(height: 32),
+
+              // ── TOMBOL SIMPAN ──
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -238,7 +279,10 @@ class _TransferScreenState extends State<TransferScreen> {
                         width: 24,
                         child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
                       )
-                    : const Text('Simpan Transaksi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    : const Text(
+                        'Simpan Transaksi',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
               ),
               const SizedBox(height: 24),
             ],
@@ -266,7 +310,11 @@ class _TransferScreenState extends State<TransferScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       );
 
-  Widget _buildCard({required String judul, required IconData icon, required List<Widget> children}) {
+  Widget _buildCard({
+    required String judul,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -274,7 +322,11 @@ class _TransferScreenState extends State<TransferScreen> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
-          BoxShadow(color: Colors.grey.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(

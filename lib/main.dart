@@ -37,18 +37,15 @@ class PindahStokApp extends StatelessWidget {
             side: BorderSide(color: Colors.grey.shade200),
           ),
         ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
       ),
       home: const HomeScreen(),
     );
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// HOME SCREEN
+// ─────────────────────────────────────────────────────────────────────────────
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -58,19 +55,35 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   List<LokasiStok> _stok = [];
+  List<String> _daftarLokasi = [];
   bool _loading = true;
   String? _error;
   DateTime? _lastUpdated;
   Timer? _timer;
 
-  final _qtyFormat = NumberFormat.decimalPattern('id_ID');
+  final _numFormat = NumberFormat.decimalPattern('id_ID');
+
+  // Warna badge per jenis
+  static const _badgeColors = {
+    'DRB KUNING': Color(0xFFFFF3CD),
+    'DRB ORANGE': Color(0xFFFFE0CC),
+    'MSU':        Color(0xFFDCF5E3),
+    'GAS':        Color(0xFFD6EAF8),
+    'SCI':        Color(0xFFEDE7F6),
+  };
+  static const _badgeTextColors = {
+    'DRB KUNING': Color(0xFF7D5A00),
+    'DRB ORANGE': Color(0xFF8B3500),
+    'MSU':        Color(0xFF1A6B35),
+    'GAS':        Color(0xFF1A4E78),
+    'SCI':        Color(0xFF4A2080),
+  };
 
   @override
   void initState() {
     super.initState();
-    _muatStok();
-    // Polling tiap 15 detik supaya tampilan stok mendekati realtime.
-    _timer = Timer.periodic(const Duration(seconds: 15), (_) => _muatStok(silent: true));
+    _muatData();
+    _timer = Timer.periodic(const Duration(seconds: 15), (_) => _muatData(silent: true));
   }
 
   @override
@@ -79,9 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  Future<void> _muatStok({bool silent = false}) async {
-    // Hanya tampilkan spinner penuh saat pertama kali load / pull-to-refresh manual.
-    // Saat polling silent, jangan timpa data lama dengan layar error kalau cuma gangguan jaringan sesaat.
+  Future<void> _muatData({bool silent = false}) async {
     if (!silent) {
       setState(() {
         _loading = true;
@@ -89,19 +100,23 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
     try {
-      final data = await ApiService.getStok();
+      // Muat lokasi & stok paralel
+      final results = await Future.wait([
+        ApiService.getLokasi(),
+        ApiService.getStok(),
+      ]);
       if (!mounted) return;
       setState(() {
-        _stok = data;
-        _error = null;
-        _loading = false;
-        _lastUpdated = DateTime.now();
+        _daftarLokasi = results[0] as List<String>;
+        _stok         = results[1] as List<LokasiStok>;
+        _error        = null;
+        _loading      = false;
+        _lastUpdated  = DateTime.now();
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        // Saat polling silent dan sudah ada data sebelumnya, biarkan data lama tetap tampil.
         if (!silent || _stok.isEmpty) {
           _error = _pesanError(e);
         }
@@ -114,48 +129,54 @@ class _HomeScreenState extends State<HomeScreen> {
     return msg.isEmpty ? 'Terjadi kesalahan tak terduga' : msg;
   }
 
+  // Hitung total keseluruhan per jenis
+  Map<String, int> get _totalPerJenis {
+    final map = <String, int>{};
+    for (final jenis in jenisFiberBox) {
+      map[jenis] = _stok.fold(0, (sum, s) => sum + (s.perJenis[jenis] ?? 0));
+    }
+    return map;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final total = _stok.fold<int>(0, (sum, s) => sum + s.qty);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Stok Fiber Box', style: TextStyle(fontWeight: FontWeight.w600)),
         actions: [
           IconButton(
             tooltip: 'Muat ulang',
-            onPressed: _loading ? null : () => _muatStok(),
+            onPressed: _loading ? null : () => _muatData(),
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () => _muatStok(),
-          child: _buildBody(total),
+          onRefresh: () => _muatData(),
+          child: _buildBody(),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.swap_horiz_rounded),
         label: const Text('Pindah Stok', style: TextStyle(fontWeight: FontWeight.w600)),
         elevation: 2,
-        onPressed: _stok.isEmpty
+        onPressed: _daftarLokasi.isEmpty
             ? null
             : () async {
-                final daftarLokasi = _stok.map((s) => s.lokasi).toList();
                 final berhasil = await Navigator.push<bool>(
                   context,
-                  MaterialPageRoute(builder: (_) => TransferScreen(daftarLokasi: daftarLokasi)),
+                  MaterialPageRoute(
+                    builder: (_) => TransferScreen(daftarLokasi: _daftarLokasi),
+                  ),
                 );
-                if (berhasil == true) _muatStok();
+                if (berhasil == true) _muatData();
               },
       ),
     );
   }
 
-  Widget _buildBody(int total) {
-    // Body selalu dibungkus list yang bisa di-scroll, supaya RefreshIndicator
-    // tetap berfungsi walaupun sedang menampilkan state loading/error/kosong.
+  Widget _buildBody() {
     if (_loading && _stok.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -174,15 +195,11 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 120),
           const Icon(Icons.cloud_off_rounded, color: Colors.redAccent, size: 48),
           const SizedBox(height: 16),
-          Text(
-            _error!,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.black54),
-          ),
+          Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.black54)),
           const SizedBox(height: 20),
           Center(
             child: FilledButton.icon(
-              onPressed: () => _muatStok(),
+              onPressed: () => _muatData(),
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('Coba Lagi'),
             ),
@@ -199,9 +216,7 @@ class _HomeScreenState extends State<HomeScreen> {
           SizedBox(height: 120),
           Icon(Icons.inventory_2_outlined, color: Colors.black38, size: 48),
           SizedBox(height: 16),
-          Center(
-            child: Text('Belum ada data lokasi stok', style: TextStyle(color: Colors.black54)),
-          ),
+          Center(child: Text('Belum ada data stok', style: TextStyle(color: Colors.black54))),
         ],
       );
     }
@@ -211,11 +226,11 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
       children: [
         if (_error != null) _buildBannerPeringatan(),
-        _buildSummaryCard(total),
+        _buildSummaryCard(),
         if (_lastUpdated != null) _buildLastUpdatedLabel(),
         const SizedBox(height: 28),
         Text(
-          'Rincian Lokasi',
+          'Rincian per Lokasi',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -242,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Gagal memuat data terbaru, menampilkan data terakhir yang tersimpan.',
+              'Gagal memuat data terbaru, menampilkan data terakhir.',
               style: TextStyle(fontSize: 12.5, color: Colors.orange.shade900),
             ),
           ),
@@ -264,8 +279,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSummaryCard(int total) {
+  /// Summary card — total keseluruhan per jenis fiber box
+  Widget _buildSummaryCard() {
     final primary = Theme.of(context).colorScheme.primary;
+    final totals  = _totalPerJenis;
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -286,52 +304,119 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         children: [
           const Text(
-            'Total Keseluruhan',
+            'Total Keseluruhan Stok',
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white70),
           ),
-          const SizedBox(height: 8),
-          Text(
-            _qtyFormat.format(total),
-            style: const TextStyle(fontSize: 44, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          const Text(
-            'pcs',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.white70),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: jenisFiberBox.map((jenis) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      jenis,
+                      style: const TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w500),
+                    ),
+                    Text(
+                      _numFormat.format(totals[jenis] ?? 0),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),
     );
   }
 
+  /// Card per lokasi — tampilkan qty per jenis fiber box
   Widget _buildStockCard(LokasiStok s) {
     final primary = Theme.of(context).colorScheme.primary;
+    final isGudang = !s.lokasi.toUpperCase().contains(RegExp(r'[A-Z]{1}\s*\d{4}'));
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: Colors.white,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: primary.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(Icons.warehouse_rounded, color: primary),
-        ),
-        title: Text(
-          s.lokasi,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-        ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            '${_qtyFormat.format(s.qty)} pcs',
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-          ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isGudang ? Icons.warehouse_rounded : Icons.local_shipping_rounded,
+                    color: primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    s.lokasi,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'Total: ${_numFormat.format(s.totalQty)}',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: s.perJenis.entries.map((entry) {
+                final bg   = _badgeColors[entry.key]    ?? Colors.grey.shade100;
+                final fg   = _badgeTextColors[entry.key] ?? Colors.black87;
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${entry.key}  ',
+                          style: TextStyle(fontSize: 11, color: fg, fontWeight: FontWeight.w500),
+                        ),
+                        TextSpan(
+                          text: _numFormat.format(entry.value),
+                          style: TextStyle(fontSize: 13, color: fg, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
         ),
       ),
     );
