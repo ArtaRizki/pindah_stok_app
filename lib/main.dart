@@ -28,7 +28,7 @@ class PindahStokApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final seed = const Color(0xFF2563EB);
     return MaterialApp(
-      title: 'Pindah Stok',
+      title: 'Fiber DRB',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: seed),

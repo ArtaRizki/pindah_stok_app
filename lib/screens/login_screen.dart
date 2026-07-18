@@ -101,14 +101,17 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset(
-                    'assets/app_icon.png',
-                    height: 80,
-                    width: 80,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      'assets/app_icon.png',
+                      height: 80,
+                      width: 80,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   const Text(
-                    'Pindah Stok App',
+                    'Fiber DRB',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w800,
