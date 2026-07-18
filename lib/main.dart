@@ -429,15 +429,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Colors.black87,
                   ),
             ),
-            if (_role == 'superadmin')
-              TextButton.icon(
-                onPressed: _exportCSV,
-                icon: const Icon(Icons.download_rounded, size: 20),
-                label: const Text('Export CSV'),
-                style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-              )
-            else
-              const SizedBox.shrink(),
+            TextButton.icon(
+              onPressed: _exportCSV,
+              icon: const Icon(Icons.download_rounded, size: 20),
+              label: const Text('Export CSV'),
+              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+            ),
           ],
         ),
         const SizedBox(height: 16),
