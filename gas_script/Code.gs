@@ -7,29 +7,23 @@
  *
  * 1. Sheet "Lokasi"
  *    Kolom A: Nama Lokasi (Contoh: Gudang A, Gudang B, B 1234 XY, dsb.)
- *    Isi sesuai lokasi nyata. Admin bisa tambah/hapus kapan saja tanpa update APK.
  *
  * 2. Sheet "Stok"
  *    Header (baris 1): Lokasi | DRB KUNING | DRB ORANGE | MSU | GAS | SCI
- *    Baris 2 dst: nama lokasi harus sama persis dengan Sheet "Lokasi"
- *    Script akan otomatis sinkronisasi jika ada lokasi baru di Sheet Lokasi.
  *
  * 3. Sheet "Transaksi" -> kosongkan saja, header dibuat otomatis oleh script.
- *
- * DEPLOY SEBAGAI WEB APP:
- *   Deploy > New deployment > Web app
- *   Execute as: Me
- *   Who has access: Anyone with the link
- *   Copy URL yang berakhiran /exec, tempel ke `baseUrl` di api_service.dart
+ *    (Header baru: Timestamp | Dari | Ke | DRB KUNING | DRB ORANGE | MSU | GAS | SCI | Oleh | FotoURL)
  */
 
 // --- KEAMANAN ---
 const API_KEY = 'RAHASIA123'; // Pastikan sama dengan di Flutter
 
-const SHEET_LOKASI     = 'Lokasi';
-const SHEET_STOK       = 'Stok';
-const SHEET_TRANSAKSI  = 'Transaksi';
-const FOLDER_FOTO_NAME = 'Foto Surat Jalan - Pindah Stok';
+const SHEET_LOKASI    = 'Lokasi';
+const SHEET_STOK      = 'Stok';
+const SHEET_TRANSAKSI = 'Transaksi';
+
+// Folder tujuan foto surat jalan
+const FOLDER_FOTO_ID  = '1PwYsdZOpSb_0lOldRvLp-i-no16KVIhB';
 
 // Daftar jenis fiber box yang dikelola (urutan = urutan kolom di Sheet Stok)
 const JENIS_FIBER = ['DRB KUNING', 'DRB ORANGE', 'MSU', 'GAS', 'SCI'];
@@ -51,12 +45,12 @@ function doGet(e) {
       return jsonResponse({ success: true, data: getStok() });
     }
     if (action === 'getRiwayat') {
-      const limit = parseInt(e.parameter.limit || '50', 10);
+      const limit = Number(e.parameter.limit) || 50;
       return jsonResponse({ success: true, data: getRiwayat(limit) });
     }
-    return jsonResponse({ success: false, message: 'Action tidak dikenal: ' + action });
+    return jsonResponse({ success: false, message: 'Action tidak dikenal' });
   } catch (err) {
-    return jsonResponse({ success: false, message: err.message });
+    return jsonResponse({ success: false, message: err.toString() });
   }
 }
 
@@ -69,68 +63,41 @@ function doPost(e) {
     if (body.apiKey !== API_KEY) {
       return jsonResponse({ success: false, message: 'Unauthorized access' });
     }
-    const action = body.action || 'pindahStok';
-
-    if (action === 'pindahStok') {
+    if (body.action === 'pindahStok') {
       return jsonResponse(prosesPindahStok(body));
     }
-    if (action === 'tambahLokasi') {
-      return jsonResponse(tambahLokasi(body.namaLokasi));
-    }
-    return jsonResponse({ success: false, message: 'Action tidak dikenal: ' + action });
+    return jsonResponse({ success: false, message: 'Action tidak dikenal' });
   } catch (err) {
-    return jsonResponse({ success: false, message: err.message });
+    return jsonResponse({ success: false, message: err.toString() });
   }
 }
 
 // ─────────────────────────────────────────────
-// AMBIL SEMUA NAMA LOKASI
+// AMBIL DAFTAR LOKASI (Dari Sheet "Lokasi")
 // ─────────────────────────────────────────────
 function getLokasi() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SHEET_LOKASI);
-  if (!sheet) {
-    // Buat sheet Lokasi otomatis jika belum ada
-    sheet = ss.insertSheet(SHEET_LOKASI);
-    sheet.appendRow(['Nama Lokasi']);
-    return [];
+  const sheet = ss.getSheetByName(SHEET_LOKASI);
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  // Asumsi baris 1 adalah header "Nama Lokasi"
+  const lokasi = [];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0]) lokasi.push(data[i][0].toString());
   }
-  const values = sheet.getDataRange().getValues();
-  return values
-    .slice(1)               // skip header
-    .map(r => r[0]?.toString().trim())
-    .filter(v => v);       // buang baris kosong
+  return lokasi;
 }
 
 // ─────────────────────────────────────────────
-// TAMBAH LOKASI BARU
-// ─────────────────────────────────────────────
-function tambahLokasi(namaLokasi) {
-  if (!namaLokasi || !namaLokasi.trim()) {
-    return { success: false, message: 'Nama lokasi tidak boleh kosong' };
-  }
-  const nama = namaLokasi.trim();
-  const lokasi = getLokasi();
-  if (lokasi.includes(nama)) {
-    return { success: false, message: 'Lokasi sudah ada: ' + nama };
-  }
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const lokasiSheet = ss.getSheetByName(SHEET_LOKASI);
-  lokasiSheet.appendRow([nama]);
-  // Tambahkan baris nol di sheet Stok agar stok lokasi baru bisa langsung dipakai
-  const stokSheet = getOrCreateStokSheet();
-  stokSheet.appendRow([nama, 0, 0, 0, 0, 0]);
-  return { success: true, message: 'Lokasi berhasil ditambahkan: ' + nama };
-}
-
-// ─────────────────────────────────────────────
-// AMBIL STOK (semua lokasi, semua jenis)
+// AMBIL DATA STOK TERKINI
 // ─────────────────────────────────────────────
 function getStok() {
   const sheet = getOrCreateStokSheet();
-  const values = sheet.getDataRange().getValues();
-  return values
-    .slice(1)  // skip header
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+
+  // Lewati baris 1 (Header), ambil baris 2 dst
+  return data.slice(1)
     .filter(r => r[0])
     .map(r => ({
       lokasi:    r[0]?.toString() ?? '',
@@ -153,48 +120,57 @@ function getRiwayat(limit) {
 
   const numRows = Math.min(limit, lastRow - 1);
   const startRow = lastRow - numRows + 1;
-  // Kolom: Timestamp | Dari | Ke | Jenis | Qty | Oleh | FotoURL
-  const values = sheet.getRange(startRow, 1, numRows, 7).getValues();
+  // Header Baru: Timestamp | Dari | Ke | DRB KUNING | DRB ORANGE | MSU | GAS | SCI | Oleh | FotoURL
+  const values = sheet.getRange(startRow, 1, numRows, 10).getValues();
   return values.reverse().map(r => ({
     timestamp: r[0],
     dari:      r[1],
     ke:        r[2],
-    jenis:     r[3],
-    qty:       Number(r[4]) || 0,
-    oleh:      r[5],
-    fotoUrl:   r[6],
+    drbKuning: Number(r[3]) || 0,
+    drbOrange: Number(r[4]) || 0,
+    msu:       Number(r[5]) || 0,
+    gas:       Number(r[6]) || 0,
+    sci:       Number(r[7]) || 0,
+    oleh:      r[8],
+    fotoUrl:   r[9],
   }));
 }
 
 // ─────────────────────────────────────────────
-// PROSES PINDAH STOK
-// body: { dari, ke, jenis, qty, oleh, fotoBase64, fotoMimeType, apiKey }
+// PROSES PINDAH STOK (MULTI-JENIS)
+// body: { dari, ke, qty: { "MSU": 50, "DRB KUNING": 25, ... }, oleh, fotoBase64, fotoMimeType, apiKey }
 // ─────────────────────────────────────────────
 function prosesPindahStok(body) {
   const dari  = body.dari;
   const ke    = body.ke;
-  const jenis = body.jenis;   // Contoh: "DRB KUNING"
-  const qty   = Number(body.qty);
+  const qtyMap = body.qty; // Map<String, int>
   const oleh  = body.oleh || 'Tidak diketahui';
 
-  if (!dari || !ke || !jenis || !qty || qty <= 0) {
-    return { success: false, message: 'Data tidak lengkap: dari, ke, jenis, qty wajib diisi' };
+  if (!dari || !ke || !qtyMap) {
+    return { success: false, message: 'Data tidak lengkap: dari, ke, dan qty wajib diisi' };
   }
   if (dari === ke) {
     return { success: false, message: 'Lokasi asal dan tujuan tidak boleh sama' };
   }
-  // Validasi jenis
-  const kolomIdx = JENIS_FIBER.indexOf(jenis);
-  if (kolomIdx === -1) {
-    return { success: false, message: 'Jenis fiber box tidak dikenal: ' + jenis };
+
+  // Filter jenis yang qty-nya > 0
+  const itemsDipindah = [];
+  for (const jenis of JENIS_FIBER) {
+    const q = Number(qtyMap[jenis]) || 0;
+    if (q > 0) {
+      itemsDipindah.push({ jenis: jenis, qty: q, kolomIdx: JENIS_FIBER.indexOf(jenis) });
+    }
   }
-  const kolomSheet = kolomIdx + 2; // Kolom B = indeks 2 (1-based), C = 3, dst.
+
+  if (itemsDipindah.length === 0) {
+    return { success: false, message: 'Semua jumlah jenis barang 0, tidak ada yang dipindahkan' };
+  }
 
   // Upload foto DULU sebelum ubah stok
   let fotoUrl = '';
   if (body.fotoBase64) {
     try {
-      fotoUrl = simpanFotoSuratJalan(body.fotoBase64, body.fotoMimeType || 'image/jpeg', dari, ke, jenis);
+      fotoUrl = simpanFotoSuratJalan(body.fotoBase64, body.fotoMimeType || 'image/jpeg', dari, ke);
     } catch (e) {
       return { success: false, message: 'Gagal upload foto surat jalan. Transaksi dibatalkan. (' + e.message + ')' };
     }
@@ -217,24 +193,46 @@ function prosesPindahStok(body) {
     if (barisDari === -1) return { success: false, message: 'Lokasi asal "' + dari + '" tidak ditemukan' };
     if (barisKe   === -1) return { success: false, message: 'Lokasi tujuan "' + ke + '" tidak ditemukan' };
 
-    const stokDari = Number(data[barisDari][kolomIdx + 1]) || 0;
-    if (stokDari < qty) {
-      return { success: false, message: 'Stok ' + jenis + ' di ' + dari + ' tidak cukup (sisa ' + stokDari + ')' };
+    // PRE-CHECK STOK (Validasi kecukupan seluruh item sebelum merubah apapun)
+    for (const item of itemsDipindah) {
+      const stokDari = Number(data[barisDari][item.kolomIdx + 1]) || 0;
+      if (stokDari < item.qty) {
+        return { success: false, message: 'Stok ' + item.jenis + ' di ' + dari + ' tidak cukup (butuh ' + item.qty + ', sisa ' + stokDari + ')' };
+      }
     }
 
-    // Update sheet Stok
-    stokSheet.getRange(barisDari + 1, kolomSheet).setValue(stokDari - qty);
-    const stokKe = Number(data[barisKe][kolomIdx + 1]) || 0;
-    stokSheet.getRange(barisKe + 1, kolomSheet).setValue(stokKe + qty);
+    // SEMUA STOK CUKUP -> LAKUKAN PEMOTONGAN & PENAMBAHAN
+    for (const item of itemsDipindah) {
+      const kolomSheet = item.kolomIdx + 2; // +1 untuk kompensasi 0-index array (kolom A), +1 untuk kompensasi 1-index Sheet (Kolom B = 2)
+      
+      const stokDariLama = Number(data[barisDari][item.kolomIdx + 1]) || 0;
+      stokSheet.getRange(barisDari + 1, kolomSheet).setValue(stokDariLama - item.qty);
+      
+      const stokKeLama = Number(data[barisKe][item.kolomIdx + 1]) || 0;
+      stokSheet.getRange(barisKe + 1, kolomSheet).setValue(stokKeLama + item.qty);
+    }
 
     // Catat ke sheet Transaksi
+    // Header Baru: Timestamp | Dari | Ke | DRB KUNING | DRB ORANGE | MSU | GAS | SCI | Oleh | FotoURL
     const transaksiSheet = getOrCreateTransaksiSheet();
-    transaksiSheet.appendRow([new Date(), dari, ke, jenis, qty, oleh, fotoUrl]);
+    const barisTransaksi = [
+      new Date(),
+      dari,
+      ke,
+      Number(qtyMap['DRB KUNING']) || 0,
+      Number(qtyMap['DRB ORANGE']) || 0,
+      Number(qtyMap['MSU']) || 0,
+      Number(qtyMap['GAS']) || 0,
+      Number(qtyMap['SCI']) || 0,
+      oleh,
+      fotoUrl
+    ];
+    transaksiSheet.appendRow(barisTransaksi);
 
     return {
       success: true,
       message: 'Stok berhasil dipindah',
-      data: { dari, ke, jenis, qty, stokDariSisa: stokDari - qty, stokKeSisa: stokKe + qty, fotoUrl }
+      data: { dari, ke, qtyMap, fotoUrl }
     };
   } finally {
     lock.releaseLock();
@@ -262,7 +260,7 @@ function getOrCreateTransaksiSheet() {
   let sheet = ss.getSheetByName(SHEET_TRANSAKSI);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_TRANSAKSI);
-    sheet.appendRow(['Timestamp', 'Dari', 'Ke', 'Jenis', 'Qty', 'Oleh', 'FotoURL']);
+    sheet.appendRow(['Timestamp', 'Dari', 'Ke', 'DRB KUNING', 'DRB ORANGE', 'MSU', 'GAS', 'SCI', 'Oleh', 'FotoURL']);
   }
   return sheet;
 }
@@ -270,21 +268,19 @@ function getOrCreateTransaksiSheet() {
 // ─────────────────────────────────────────────
 // SIMPAN FOTO SURAT JALAN KE GOOGLE DRIVE
 // ─────────────────────────────────────────────
-function simpanFotoSuratJalan(base64Data, mimeType, dari, ke, jenis) {
-  const folder = getOrCreateFolder(FOLDER_FOTO_NAME);
+function simpanFotoSuratJalan(base64Data, mimeType, dari, ke) {
+  const folder = DriveApp.getFolderById(FOLDER_FOTO_ID);
   const bytes = Utilities.base64Decode(base64Data);
   const ext = (mimeType.split('/')[1]) || 'jpg';
-  const fileName = 'SJ_' + jenis.replace(/\s+/g, '_') + '_' + dari + '_ke_' + ke + '_' + new Date().getTime() + '.' + ext;
+  const fileName = 'SJ_' + dari + '_ke_' + ke + '_' + new Date().getTime() + '.' + ext;
+  
   const blob = Utilities.newBlob(bytes, mimeType, fileName);
   const file = folder.createFile(blob);
+  
+  // Set agar bisa dilihat siapa saja (dibutuhkan agar image bisa dirender di Flutter)
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  
   return 'https://drive.google.com/uc?id=' + file.getId();
-}
-
-function getOrCreateFolder(name) {
-  const folders = DriveApp.getFoldersByName(name);
-  if (folders.hasNext()) return folders.next();
-  return DriveApp.createFolder(name);
 }
 
 // ─────────────────────────────────────────────

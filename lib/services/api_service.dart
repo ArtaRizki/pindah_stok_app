@@ -51,13 +51,13 @@ class ApiService {
   }
 
   // ─────────────────────────────────────────────
-  // POST: Pindah stok (dengan jenis fiber box)
+  // POST: Pindah stok (multi-jenis)
+  // quantities: Map<String, int> — key = nama jenis (DRB KUNING, MSU, dst)
   // ─────────────────────────────────────────────
   static Future<Map<String, dynamic>> pindahStok({
     required String dari,
     required String ke,
-    required String jenis,
-    required int qty,
+    required Map<String, int> quantities,
     required String oleh,
     String? fotoBase64,
     String? fotoMimeType,
@@ -71,10 +71,9 @@ class ApiService {
         'action': 'pindahStok',
         'dari':   dari,
         'ke':     ke,
-        'jenis':  jenis,
-        'qty':    qty,
+        'qty':    quantities,
         'oleh':   oleh,
-        'fotoBase64':  fotoBase64,
+        'fotoBase64':   fotoBase64,
         'fotoMimeType': fotoMimeType,
       }),
     );

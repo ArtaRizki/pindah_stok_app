@@ -16,21 +16,36 @@ class TransferScreen extends StatefulWidget {
 
 class _TransferScreenState extends State<TransferScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _qtyController   = TextEditingController();
-  final _olehController  = TextEditingController();
+  final _olehController = TextEditingController();
+
+  // Controller untuk setiap jenis fiber box
+  final Map<String, TextEditingController> _qtyControllers = {
+    for (final j in jenisFiberBox) j: TextEditingController(text: '0'),
+  };
 
   String? _dari;
   String? _ke;
-  String? _jenis;          // Jenis fiber box yang dipindah
   File?   _fotoSuratJalan;
   bool    _loading = false;
 
   @override
   void dispose() {
-    _qtyController.dispose();
     _olehController.dispose();
+    for (final c in _qtyControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
+
+  // ─────────────────────────────────────────────
+  // Buat map jenis → qty dari controllers
+  // ─────────────────────────────────────────────
+  Map<String, int> get _quantities => {
+        for (final entry in _qtyControllers.entries)
+          entry.key: int.tryParse(entry.value.text) ?? 0,
+      };
+
+  bool get _adaQtyYangDiisi => _quantities.values.any((q) => q > 0);
 
   // ─────────────────────────────────────────────
   // AMBIL FOTO
@@ -53,6 +68,11 @@ class _TransferScreenState extends State<TransferScreen> {
   // ─────────────────────────────────────────────
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (!_adaQtyYangDiisi) {
+      _tampilkanPesan('Minimal 1 jenis fiber box harus diisi lebih dari 0');
+      return;
+    }
     if (_dari == _ke) {
       _tampilkanPesan('Lokasi asal dan tujuan tidak boleh sama');
       return;
@@ -70,12 +90,13 @@ class _TransferScreenState extends State<TransferScreen> {
       }
 
       final result = await ApiService.pindahStok(
-        dari:         _dari!,
-        ke:           _ke!,
-        jenis:        _jenis!,
-        qty:          int.parse(_qtyController.text),
-        oleh:         _olehController.text.trim().isEmpty ? 'Tidak diketahui' : _olehController.text.trim(),
-        fotoBase64:   fotoBase64,
+        dari:        _dari!,
+        ke:          _ke!,
+        quantities:  _quantities,
+        oleh:        _olehController.text.trim().isEmpty
+            ? 'Tidak diketahui'
+            : _olehController.text.trim(),
+        fotoBase64:  fotoBase64,
         fotoMimeType: 'image/jpeg',
       );
 
@@ -104,6 +125,7 @@ class _TransferScreenState extends State<TransferScreen> {
   }
 
   Future<bool?> _tampilkanKonfirmasi() {
+    final qtys = _quantities.entries.where((e) => e.value > 0).toList();
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -112,27 +134,31 @@ class _TransferScreenState extends State<TransferScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _baris('Jenis',   _jenis ?? '-'),
-            _baris('Dari',    _dari ?? '-'),
-            _baris('Ke',      _ke ?? '-'),
-            _baris('Qty',     '${_qtyController.text} pcs'),
-            _baris('Petugas', _olehController.text.trim().isEmpty ? 'Tidak diketahui' : _olehController.text.trim()),
-            _baris('Foto',    _fotoSuratJalan == null ? 'Tidak ada' : 'Terlampir'),
+            _baris('Dari',     _dari ?? '-'),
+            _baris('Ke',       _ke ?? '-'),
+            _baris('Petugas',  _olehController.text.trim().isEmpty
+                ? 'Tidak diketahui'
+                : _olehController.text.trim()),
+            const Divider(height: 20),
+            const Text('Barang dipindahkan:', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            ...qtys.map((e) => _baris(e.key, '${e.value} pcs')),
+            _baris('Foto', _fotoSuratJalan == null ? 'Tidak ada' : 'Terlampir'),
           ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Kirim')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true),  child: const Text('Kirim')),
         ],
       ),
     );
   }
 
   Widget _baris(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(
           children: [
-            SizedBox(width: 70, child: Text(label, style: const TextStyle(color: Colors.black54))),
+            SizedBox(width: 80, child: Text(label, style: const TextStyle(color: Colors.black54))),
             Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600))),
           ],
         ),
@@ -144,6 +170,7 @@ class _TransferScreenState extends State<TransferScreen> {
   @override
   Widget build(BuildContext context) {
     final opsiTujuan = widget.daftarLokasi.where((l) => l != _dari).toList();
+    final primary    = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(
@@ -156,27 +183,9 @@ class _TransferScreenState extends State<TransferScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── SECTION: Jenis Fiber Box ──
+              // ── SECTION: Lokasi & Petugas ──
               _buildCard(
-                judul: 'Jenis Fiber Box',
-                icon: Icons.category_outlined,
-                children: [
-                  DropdownButtonFormField<String>(
-                    value: _jenis,
-                    decoration: _inputDecoration('Pilih Jenis Fiber Box'),
-                    items: jenisFiberBox
-                        .map((j) => DropdownMenuItem(value: j, child: Text(j)))
-                        .toList(),
-                    onChanged: (v) => setState(() => _jenis = v),
-                    validator: (v) => v == null ? 'Pilih jenis fiber box' : null,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // ── SECTION: Detail Lokasi & Petugas ──
-              _buildCard(
-                judul: 'Detail Lokasi & Petugas',
+                judul: 'Lokasi & Petugas',
                 icon: Icons.location_on_outlined,
                 children: [
                   DropdownButtonFormField<String>(
@@ -203,22 +212,74 @@ class _TransferScreenState extends State<TransferScreen> {
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
-                    controller: _qtyController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: _inputDecoration('Qty (Jumlah)'),
-                    validator: (v) {
-                      final qty = int.tryParse(v ?? '');
-                      if (qty == null || qty <= 0) return 'Masukkan jumlah yang valid';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
                     controller: _olehController,
                     textCapitalization: TextCapitalization.words,
-                    decoration: _inputDecoration('Nama Petugas'),
+                    decoration: _inputDecoration('Nama Petugas (opsional)'),
                   ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // ── SECTION: Jumlah per Jenis ──
+              _buildCard(
+                judul: 'Jumlah per Jenis Fiber Box',
+                icon: Icons.inventory_2_outlined,
+                children: [
+                  const Text(
+                    'Isi jumlah yang dipindahkan (kosongkan atau isi 0 jika tidak ada)',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 16),
+                  ...jenisFiberBox.map((jenis) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          children: [
+                            // Label badge warna
+                            Container(
+                              width: 110,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: _badgeBg(jenis),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                jenis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: _badgeFg(jenis),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Input qty
+                            Expanded(
+                              child: TextFormField(
+                                controller: _qtyControllers[jenis],
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                textAlign: TextAlign.center,
+                                decoration: InputDecoration(
+                                  suffixText: 'pcs',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 12,
+                                  ),
+                                ),
+                                onTap: () {
+                                  // Hapus "0" otomatis saat diklik
+                                  final c = _qtyControllers[jenis]!;
+                                  if (c.text == '0') c.clear();
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
                 ],
               ),
               const SizedBox(height: 16),
@@ -232,11 +293,13 @@ class _TransferScreenState extends State<TransferScreen> {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      side: BorderSide(color: Theme.of(context).colorScheme.primary),
+                      side: BorderSide(color: primary),
                     ),
                     onPressed: _ambilFoto,
                     icon: const Icon(Icons.camera_alt_outlined),
-                    label: Text(_fotoSuratJalan == null ? 'Ambil Foto Surat Jalan' : 'Ganti Foto'),
+                    label: Text(
+                      _fotoSuratJalan == null ? 'Ambil Foto Surat Jalan' : 'Ganti Foto',
+                    ),
                   ),
                   if (_fotoSuratJalan != null) ...[
                     const SizedBox(height: 16),
@@ -268,7 +331,7 @@ class _TransferScreenState extends State<TransferScreen> {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  backgroundColor: primary,
                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   elevation: 2,
                 ),
@@ -292,17 +355,37 @@ class _TransferScreenState extends State<TransferScreen> {
     );
   }
 
-  Widget _tombolHapusFoto() {
-    return InkWell(
-      onTap: _hapusFoto,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-        child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
-      ),
-    );
-  }
+  // ─────────────────────────────────────────────
+  // HELPERS UI
+  // ─────────────────────────────────────────────
+
+  static const _badgeColors = {
+    'DRB KUNING': Color(0xFFFFF3CD),
+    'DRB ORANGE': Color(0xFFFFE0CC),
+    'MSU':        Color(0xFFDCF5E3),
+    'GAS':        Color(0xFFD6EAF8),
+    'SCI':        Color(0xFFEDE7F6),
+  };
+  static const _badgeTextColors = {
+    'DRB KUNING': Color(0xFF7D5A00),
+    'DRB ORANGE': Color(0xFF8B3500),
+    'MSU':        Color(0xFF1A6B35),
+    'GAS':        Color(0xFF1A4E78),
+    'SCI':        Color(0xFF4A2080),
+  };
+
+  Color _badgeBg(String jenis) => _badgeColors[jenis] ?? const Color(0xFFF5F5F5);
+  Color _badgeFg(String jenis) => _badgeTextColors[jenis] ?? Colors.black87;
+
+  Widget _tombolHapusFoto() => InkWell(
+        onTap: _hapusFoto,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+          child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+        ),
+      );
 
   InputDecoration _inputDecoration(String label) => InputDecoration(
         labelText: label,

@@ -1,4 +1,4 @@
-/// Jenis-jenis fiber box yang tersedia.
+/// Jenis-jenis fiber box yang tersedia (urutan harus sama dengan kolom di Sheet Stok).
 const List<String> jenisFiberBox = [
   'DRB KUNING',
   'DRB ORANGE',
@@ -7,6 +7,9 @@ const List<String> jenisFiberBox = [
   'SCI',
 ];
 
+// ─────────────────────────────────────────────
+// STOK PER LOKASI
+// ─────────────────────────────────────────────
 class LokasiStok {
   final String lokasi;
   final int drbKuning;
@@ -48,12 +51,18 @@ class LokasiStok {
   }
 }
 
+// ─────────────────────────────────────────────
+// RIWAYAT TRANSAKSI (MULTI-JENIS)
+// ─────────────────────────────────────────────
 class RiwayatTransaksi {
   final DateTime timestamp;
   final String dari;
   final String ke;
-  final String jenis;
-  final int qty;
+  final int drbKuning;
+  final int drbOrange;
+  final int msu;
+  final int gas;
+  final int sci;
   final String oleh;
   final String fotoUrl;
 
@@ -61,19 +70,48 @@ class RiwayatTransaksi {
     required this.timestamp,
     required this.dari,
     required this.ke,
-    required this.jenis,
-    required this.qty,
+    this.drbKuning = 0,
+    this.drbOrange = 0,
+    this.msu = 0,
+    this.gas = 0,
+    this.sci = 0,
     required this.oleh,
     required this.fotoUrl,
   });
 
+  /// Total qty yang dipindah dalam transaksi ini.
+  int get totalQty => drbKuning + drbOrange + msu + gas + sci;
+
+  /// Map jenis -> qty hanya untuk jenis yang > 0 (dipakai di tampilan riwayat).
+  Map<String, int> get perJenisAktif {
+    final map = <String, int>{};
+    if (drbKuning > 0) map['DRB KUNING'] = drbKuning;
+    if (drbOrange > 0) map['DRB ORANGE'] = drbOrange;
+    if (msu > 0)       map['MSU']        = msu;
+    if (gas > 0)       map['GAS']        = gas;
+    if (sci > 0)       map['SCI']        = sci;
+    return map;
+  }
+
   factory RiwayatTransaksi.fromJson(Map<String, dynamic> json) {
+    DateTime ts = DateTime.now();
+    final raw = json['timestamp'];
+    if (raw is String) {
+      ts = DateTime.tryParse(raw) ?? DateTime.now();
+    } else if (raw is num) {
+      // GAS mengirim timestamp sebagai Unix ms
+      ts = DateTime.fromMillisecondsSinceEpoch(raw.toInt());
+    }
+
     return RiwayatTransaksi(
-      timestamp: DateTime.tryParse(json['timestamp']?.toString() ?? '') ?? DateTime.now(),
+      timestamp: ts,
       dari:      json['dari']?.toString() ?? '',
       ke:        json['ke']?.toString() ?? '',
-      jenis:     json['jenis']?.toString() ?? '-',
-      qty:       (json['qty'] as num?)?.toInt() ?? 0,
+      drbKuning: (json['drbKuning'] as num?)?.toInt() ?? 0,
+      drbOrange: (json['drbOrange'] as num?)?.toInt() ?? 0,
+      msu:       (json['msu']       as num?)?.toInt() ?? 0,
+      gas:       (json['gas']       as num?)?.toInt() ?? 0,
+      sci:       (json['sci']       as num?)?.toInt() ?? 0,
       oleh:      json['oleh']?.toString() ?? '',
       fotoUrl:   json['fotoUrl']?.toString() ?? '',
     );
