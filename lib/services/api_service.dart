@@ -25,6 +25,19 @@ class ApiService {
   }
 
   // ─────────────────────────────────────────────
+  // GET: Daftar admin
+  // ─────────────────────────────────────────────
+  static Future<List<String>> getAdmin() async {
+    final res = await _request('GET', '$baseUrl?action=getAdmin&apiKey=$apiKey');
+    final body = jsonDecode(res.body);
+    if (body['success'] != true) {
+      throw Exception(body['message'] ?? 'Gagal mengambil daftar admin');
+    }
+    final List data = body['data'];
+    return data.map((e) => e.toString()).toList();
+  }
+
+  // ─────────────────────────────────────────────
   // GET: Stok per lokasi per jenis
   // ─────────────────────────────────────────────
   static Future<List<LokasiStok>> getStok() async {

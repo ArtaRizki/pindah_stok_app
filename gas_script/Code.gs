@@ -10,6 +10,7 @@ const API_KEY = 'RAHASIA123';
 const SHEET_LOKASI    = 'Lokasi';
 const SHEET_STOK      = 'Stok';
 const SHEET_TRANSAKSI = 'Transaksi';
+const SHEET_ADMIN     = 'Admin';
 
 const FOLDER_FOTO_ID  = '1PwYsdZOpSb_0lOldRvLp-i-no16KVIhB';
 
@@ -25,6 +26,9 @@ function doGet(e) {
 
     if (action === 'getLokasi') {
       return jsonResponse({ success: true, data: getLokasi() });
+    }
+    if (action === 'getAdmin') {
+      return jsonResponse({ success: true, data: getAdmin() });
     }
     if (action === 'getStok') {
       return jsonResponse({ success: true, data: getStok() });
@@ -66,6 +70,24 @@ function getLokasi() {
     if (data[i][0]) lokasi.push(data[i][0].toString());
   }
   return lokasi;
+}
+
+function getAdmin() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_ADMIN);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_ADMIN);
+    sheet.appendRow(['Nama Admin']);
+    sheet.getRange('A1:A1').setFontWeight('bold');
+    return [];
+  }
+  const data = sheet.getDataRange().getValues();
+  const admins = [];
+  for (let i = 1; i < data.length; i++) {
+    const nama = data[i][0];
+    if (nama) admins.push(nama.toString().trim());
+  }
+  return admins;
 }
 
 function getStok() {
