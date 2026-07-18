@@ -49,7 +49,11 @@ class PindahStokApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const HomeScreen(),
+      initialRoute: initialRoute,
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/home': (context) => const HomeScreen(),
+      },
     );
   }
 }
@@ -307,7 +311,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('pic_name');
-              if (!mounted) return;
+              if (!context.mounted) return;
               Navigator.pushReplacementNamed(context, '/login');
             },
             icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
