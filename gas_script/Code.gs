@@ -331,7 +331,11 @@ function simpanFotoSuratJalan(base64Data, mimeType, dari, ke) {
   const fileName = 'SJ_' + dari + '_ke_' + ke + '_' + new Date().getTime() + '.' + ext;
   const blob = Utilities.newBlob(bytes, mimeType, fileName);
   const file = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (e) {
+    // Abaikan error jika aturan Workspace (kantor) melarang akses publik
+  }
   return 'https://drive.google.com/uc?id=' + file.getId();
 }
 
