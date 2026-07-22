@@ -299,13 +299,14 @@ class _TransferScreenState extends State<TransferScreen> {
             _buildCard(
               children: [
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _dari,
                   decoration: _inputDecoration(
                     'Dari Lokasi',
                     Icons.upload_outlined,
                   ),
                   items: widget.daftarLokasi
-                      .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                      .map((l) => DropdownMenuItem(value: l, child: Text(l, overflow: TextOverflow.ellipsis)))
                       .toList(),
                   onChanged: (v) => setState(() {
                     _dari = v;
@@ -315,16 +316,17 @@ class _TransferScreenState extends State<TransferScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _ke,
                   decoration: _inputDecoration(
                     'Ke Lokasi',
                     Icons.download_outlined,
                   ),
                   items: [
-                    ...opsiTujuan.map((l) => DropdownMenuItem(value: l, child: Text(l))),
+                    ...opsiTujuan.map((l) => DropdownMenuItem(value: l, child: Text(l, overflow: TextOverflow.ellipsis))),
                     const DropdownMenuItem(
                       value: '+ Tambah Lokasi Baru',
-                      child: Text('+ Tambah Lokasi Baru', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                      child: Text('+ Tambah Lokasi Baru', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
                     ),
                   ],
                   onChanged: (v) {

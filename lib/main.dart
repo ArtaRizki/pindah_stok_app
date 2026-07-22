@@ -16,7 +16,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
   final String? picName = prefs.getString('pic_name');
-  
+
   runApp(PindahStokApp(initialRoute: picName != null ? '/home' : '/login'));
 }
 
@@ -83,22 +83,23 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _badgeColors = {
     'DRB KUNING': Color(0xFFFFF3CD),
     'DRB ORANGE': Color(0xFFFFE0CC),
-    'MSU':        Color(0xFFDCF5E3),
-    'GAS':        Color(0xFFD6EAF8),
-    'SCI':        Color(0xFFEDE7F6),
+    'MSU': Color(0xFFDCF5E3),
+    'GAS': Color(0xFFD6EAF8),
+    'SCI': Color(0xFFEDE7F6),
   };
   static const _badgeTextColors = {
     'DRB KUNING': Color(0xFF7D5A00),
     'DRB ORANGE': Color(0xFF8B3500),
-    'MSU':        Color(0xFF1A6B35),
-    'GAS':        Color(0xFF1A4E78),
-    'SCI':        Color(0xFF4A2080),
+    'MSU': Color(0xFF1A6B35),
+    'GAS': Color(0xFF1A4E78),
+    'SCI': Color(0xFF4A2080),
   };
 
   @override
   void initState() {
     super.initState();
     _loadRole();
+    _muatData();
     // auto-refresh 30 detik
     _timer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (!_loading) _muatData();
@@ -134,10 +135,10 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() {
         _daftarLokasi = results[0] as List<String>;
-        _stok         = results[1] as List<LokasiStok>;
-        _error        = null;
-        _loading      = false;
-        _lastUpdated  = DateTime.now();
+        _stok = results[1] as List<LokasiStok>;
+        _error = null;
+        _loading = false;
+        _lastUpdated = DateTime.now();
       });
     } catch (e) {
       if (!mounted) return;
@@ -167,15 +168,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _convertToCsv(List<List<dynamic>> rows) {
-    return rows.map((row) {
-      return row.map((cell) {
-        final str = cell.toString();
-        if (str.contains(',') || str.contains('"') || str.contains('\n')) {
-          return '"${str.replaceAll('"', '""')}"';
-        }
-        return str;
-      }).join(',');
-    }).join('\n');
+    return rows
+        .map((row) {
+          return row
+              .map((cell) {
+                final str = cell.toString();
+                if (str.contains(',') ||
+                    str.contains('"') ||
+                    str.contains('\n')) {
+                  return '"${str.replaceAll('"', '""')}"';
+                }
+                return str;
+              })
+              .join(',');
+        })
+        .join('\n');
   }
 
   Future<void> _exportCSV() async {
@@ -188,7 +195,9 @@ class _HomeScreenState extends State<HomeScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Export Laporan'),
-          content: const Text('Apakah Anda ingin memfilter Riwayat Transaksi berdasarkan rentang tanggal?'),
+          content: const Text(
+            'Apakah Anda ingin memfilter Riwayat Transaksi berdasarkan rentang tanggal?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -234,7 +243,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (proceed != true) return;
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Menyiapkan file export...')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Menyiapkan file export...')),
+      );
 
       // 1. Siapkan file Rekap Stok (Snapshot)
       final List<List<dynamic>> rowsStok = [];
@@ -243,9 +254,9 @@ class _HomeScreenState extends State<HomeScreen> {
         itemTypes.addAll(s.items.keys);
       }
       final sortedItems = itemTypes.toList()..sort();
-      
+
       rowsStok.add(['Lokasi', ...sortedItems, 'Total']);
-      
+
       for (final s in _stok) {
         final List<dynamic> row = [s.lokasi];
         for (final item in sortedItems) {
@@ -254,20 +265,30 @@ class _HomeScreenState extends State<HomeScreen> {
         row.add(s.totalQty);
         rowsStok.add(row);
       }
-      
+
       final csvStok = _convertToCsv(rowsStok);
       final dir = await getTemporaryDirectory();
-      final fileStok = File('${dir.path}/Rekap_Stok_${DateTime.now().millisecondsSinceEpoch}.csv');
+      final fileStok = File(
+        '${dir.path}/Rekap_Stok_${DateTime.now().millisecondsSinceEpoch}.csv',
+      );
       await fileStok.writeAsString(csvStok);
 
       // 2. Ambil data Riwayat Transaksi (Limit 1000)
       final riwayatList = await ApiService.getRiwayat(
-        limit: 1000, 
-        startDate: startDate, 
+        limit: 1000,
+        startDate: startDate,
         endDate: endDate,
       );
       final List<List<dynamic>> rowsRiwayat = [];
-      rowsRiwayat.add(['Waktu', 'Dari', 'Ke', ...sortedItems, 'Total', 'PIC', 'Foto Surat Jalan']);
+      rowsRiwayat.add([
+        'Waktu',
+        'Dari',
+        'Ke',
+        ...sortedItems,
+        'Total',
+        'PIC',
+        'Foto Surat Jalan',
+      ]);
 
       for (final r in riwayatList) {
         final List<dynamic> row = [
@@ -278,16 +299,14 @@ class _HomeScreenState extends State<HomeScreen> {
         for (final item in sortedItems) {
           row.add(r.items[item] ?? 0);
         }
-        row.addAll([
-          r.totalQty,
-          r.oleh,
-          r.fotoUrl,
-        ]);
+        row.addAll([r.totalQty, r.oleh, r.fotoUrl]);
         rowsRiwayat.add(row);
       }
 
       final csvRiwayat = _convertToCsv(rowsRiwayat);
-      final fileRiwayat = File('${dir.path}/Rincian_Transaksi_${DateTime.now().millisecondsSinceEpoch}.csv');
+      final fileRiwayat = File(
+        '${dir.path}/Rincian_Transaksi_${DateTime.now().millisecondsSinceEpoch}.csv',
+      );
       await fileRiwayat.writeAsString(csvRiwayat);
 
       // 3. Share kedua file
@@ -295,13 +314,15 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       await SharePlus.instance.share(
         ShareParams(
-          files: [XFile(fileStok.path), XFile(fileRiwayat.path)], 
+          files: [XFile(fileStok.path), XFile(fileRiwayat.path)],
           text: 'Laporan Pindah Stok',
         ),
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal export: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal export: $e')));
       }
     }
   }
@@ -310,14 +331,19 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Stok Fiber Box', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: const Text(
+          'Stok Fiber Box',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         actions: [
           IconButton(
             tooltip: 'Riwayat Transaksi',
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const RiwayatTransaksiScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const RiwayatTransaksiScreen(),
+                ),
               );
             },
             icon: const Icon(Icons.history_rounded),
@@ -347,7 +373,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.swap_horiz_rounded),
-        label: const Text('Pindah Stok', style: TextStyle(fontWeight: FontWeight.w600)),
+        label: const Text(
+          'Pindah Stok',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         elevation: 2,
         onPressed: _daftarLokasi.isEmpty
             ? null
@@ -381,9 +410,17 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 24),
         children: [
           const SizedBox(height: 120),
-          const Icon(Icons.cloud_off_rounded, color: Colors.redAccent, size: 48),
+          const Icon(
+            Icons.cloud_off_rounded,
+            color: Colors.redAccent,
+            size: 48,
+          ),
           const SizedBox(height: 16),
-          Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.black54)),
+          Text(
+            _error!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.black54),
+          ),
           const SizedBox(height: 20),
           Center(
             child: FilledButton.icon(
@@ -404,7 +441,12 @@ class _HomeScreenState extends State<HomeScreen> {
           SizedBox(height: 120),
           Icon(Icons.inventory_2_outlined, color: Colors.black38, size: 48),
           SizedBox(height: 16),
-          Center(child: Text('Belum ada data stok', style: TextStyle(color: Colors.black54))),
+          Center(
+            child: Text(
+              'Belum ada data stok',
+              style: TextStyle(color: Colors.black54),
+            ),
+          ),
         ],
       );
     }
@@ -425,9 +467,9 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               'Rincian per Lokasi',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
             TextButton.icon(
               onPressed: _exportCSV,
@@ -442,7 +484,10 @@ class _HomeScreenState extends State<HomeScreen> {
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 32),
             child: Center(
-              child: Text('Tidak ada lokasi dengan stok > 0', style: TextStyle(color: Colors.black54)),
+              child: Text(
+                'Tidak ada lokasi dengan stok > 0',
+                style: TextStyle(color: Colors.black54),
+              ),
             ),
           )
         else
@@ -491,7 +536,7 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Summary card — total keseluruhan per jenis fiber box
   Widget _buildSummaryCard() {
     final primary = Theme.of(context).colorScheme.primary;
-    final totals  = _totalPerJenis;
+    final totals = _totalPerJenis;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -514,7 +559,11 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           const Text(
             'Total Keseluruhan Stok',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white70),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.white70,
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -523,7 +572,10 @@ class _HomeScreenState extends State<HomeScreen> {
             alignment: WrapAlignment.center,
             children: totals.entries.where((e) => e.value > 0).map((entry) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
@@ -532,11 +584,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text(
                       entry.key,
-                      style: const TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     Text(
                       _numFormat.format(entry.value),
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ],
                 ),
@@ -551,7 +611,9 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Card per lokasi — tampilkan qty per jenis fiber box
   Widget _buildStockCard(LokasiStok s) {
     final primary = Theme.of(context).colorScheme.primary;
-    final isGudang = !s.lokasi.toUpperCase().contains(RegExp(r'[A-Z]{1}\s*\d{4}'));
+    final isGudang = !s.lokasi.toUpperCase().contains(
+      RegExp(r'[A-Z]{1}\s*\d{4}'),
+    );
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -570,7 +632,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    isGudang ? Icons.warehouse_rounded : Icons.local_shipping_rounded,
+                    isGudang
+                        ? Icons.warehouse_rounded
+                        : Icons.local_shipping_rounded,
                     color: primary,
                     size: 20,
                   ),
@@ -579,18 +643,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: Text(
                     s.lokasi,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     'Total: ${_numFormat.format(s.totalQty)}',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54,
+                    ),
                   ),
                 ),
               ],
@@ -600,10 +674,13 @@ class _HomeScreenState extends State<HomeScreen> {
               spacing: 8,
               runSpacing: 6,
               children: s.perJenis.entries.map((entry) {
-                final bg   = _badgeColors[entry.key]    ?? Colors.grey.shade100;
-                final fg   = _badgeTextColors[entry.key] ?? Colors.black87;
+                final bg = _badgeColors[entry.key] ?? Colors.grey.shade100;
+                final fg = _badgeTextColors[entry.key] ?? Colors.black87;
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: bg,
                     borderRadius: BorderRadius.circular(8),
@@ -613,11 +690,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         TextSpan(
                           text: '${entry.key}  ',
-                          style: TextStyle(fontSize: 11, color: fg, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: fg,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         TextSpan(
                           text: _numFormat.format(entry.value),
-                          style: TextStyle(fontSize: 13, color: fg, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: fg,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
