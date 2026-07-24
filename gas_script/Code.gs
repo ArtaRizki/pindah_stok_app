@@ -155,7 +155,11 @@ function getRiwayat(limit, startDateStr, endDateStr, picStr) {
   const tsIdx = headers.indexOf("Timestamp");
   const dariIdx = headers.indexOf("Dari");
   const keIdx = headers.indexOf("Ke");
-  const olehIdx = headers.indexOf("PIC");
+  
+  // Tangani perubahan nama kolom dari "Oleh" menjadi "PIC"
+  let olehIdx = headers.indexOf("PIC");
+  if (olehIdx === -1) olehIdx = headers.indexOf("Oleh");
+  
   const fotoIdx = headers.indexOf("FotoURL");
 
   const startDate = startDateStr ? new Date(startDateStr) : null;
@@ -425,7 +429,18 @@ function webGetStok() {
 }
 
 function webGetRiwayat(limit, startDate, endDate, pic) {
-  return getRiwayat(limit, startDate, endDate, pic);
+  const riwayat = getRiwayat(limit, startDate, endDate, pic);
+  // Konversi object Date ke String agar google.script.run tidak gagal serialize (mengembalikan null)
+  return riwayat.map((r) => {
+    return {
+      timestamp: r.timestamp && r.timestamp.toISOString ? r.timestamp.toISOString() : r.timestamp,
+      dari: r.dari,
+      ke: r.ke,
+      oleh: r.oleh || "-",
+      fotoUrl: r.fotoUrl,
+      items: r.items,
+    };
+  });
 }
 
 function webGetAdmin() {
