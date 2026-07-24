@@ -330,6 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text(
           'Stok Fiber Box',
@@ -364,6 +365,33 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
           ),
         ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            UserAccountsDrawerHeader(
+              decoration: const BoxDecoration(color: Color(0xFF2563EB)),
+              accountName: Text('Login sebagai PIC: $_role', style: const TextStyle(fontWeight: FontWeight.bold)),
+              accountEmail: null,
+              currentAccountPicture: const CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Icon(Icons.person, color: Color(0xFF2563EB), size: 40),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+              title: const Text('Logout', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+              onTap: () async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('pic_name');
+                await prefs.remove('pic_role');
+                if (!context.mounted) return;
+                Navigator.pushReplacementNamed(context, '/login');
+              },
+            ),
+          ],
+        ),
       ),
       body: SafeArea(
         child: RefreshIndicator(

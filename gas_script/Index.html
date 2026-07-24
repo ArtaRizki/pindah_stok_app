@@ -1,0 +1,1230 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Mengganti Nama App -->
+    <title>Fiber DRB</title>
+    <!-- Menambahkan Favicon sederhana untuk tab browser -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>"
+    />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f8fafc;
+      }
+      .hidden {
+        display: none !important;
+      }
+
+      /* Custom scrollbar to match app feel */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+    </style>
+  </head>
+  <body class="text-slate-800 antialiased">
+    <!-- Global Alert -->
+    <div
+      id="alertBox"
+      class="fixed top-4 right-4 z-50 hidden max-w-sm w-full shadow-lg rounded-lg p-4 text-sm font-medium transition-all"
+    ></div>
+
+    <!-- Modal Konfirmasi Transfer -->
+    <div
+      id="confirmModal"
+      class="fixed inset-0 z-[100] hidden bg-black bg-opacity-50 flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden"
+      >
+        <div class="p-6">
+          <h3 class="text-lg font-bold text-slate-900 mb-4">
+            Konfirmasi Transfer
+          </h3>
+          <div class="space-y-3 text-sm" id="confirmContent">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+        <div
+          class="bg-slate-50 px-6 py-4 flex justify-end space-x-3 rounded-b-2xl"
+        >
+          <button
+            type="button"
+            onclick="closeConfirmModal()"
+            class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-colors"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            onclick="executeTransfer()"
+            class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+          >
+            Kirim
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGIN VIEW -->
+    <div
+      id="login-view"
+      class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
+    >
+      <div
+        class="max-w-md w-full space-y-8 bg-white p-8 rounded-3xl shadow-2xl border border-slate-100"
+      >
+        <div class="flex flex-col items-center">
+          <!-- App Icon Placeholder (Mirip di login_screen.dart) -->
+          <div class="bg-indigo-50 rounded-2xl p-4 shadow-sm mb-4">
+            <svg
+              class="w-16 h-16 text-indigo-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+              ></path>
+            </svg>
+          </div>
+          <h2
+            class="mt-2 text-center text-3xl font-extrabold text-indigo-900 tracking-tight"
+          >
+            Fiber DRB
+          </h2>
+        </div>
+        <form class="mt-8 space-y-6" onsubmit="handleLogin(event)">
+          <div class="rounded-md space-y-4">
+            <div>
+              <label for="username" class="sr-only">Username</label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                required
+                class="appearance-none rounded-xl relative block w-full px-4 py-3.5 border border-slate-300 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-slate-50 transition-colors"
+                placeholder="Username"
+              />
+            </div>
+            <div>
+              <label for="password" class="sr-only">Password</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                class="appearance-none rounded-xl relative block w-full px-4 py-3.5 border border-slate-300 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-slate-50 transition-colors"
+                placeholder="Password"
+              />
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              id="btnLogin"
+              class="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-md transition-all"
+            >
+              Login
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MAIN APP WRAPPER -->
+    <div id="app-wrapper" class="hidden min-h-screen flex flex-col">
+      <!-- TOP NAVBAR -->
+      <nav class="bg-indigo-700 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center justify-between h-16">
+            <div class="flex items-center">
+              <div
+                class="flex-shrink-0 flex items-center text-white font-bold text-xl tracking-tight"
+              >
+                <svg
+                  class="w-6 h-6 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                  ></path>
+                </svg>
+                Fiber DRB
+              </div>
+              <div class="hidden md:block">
+                <div class="ml-10 flex items-baseline space-x-4">
+                  <a
+                    href="#"
+                    onclick="switchView('dashboard')"
+                    id="nav-dashboard"
+                    class="nav-item text-white px-3 py-2 rounded-md text-sm font-medium bg-indigo-800"
+                    >Pindah Stok</a
+                  >
+                  <a
+                    href="#"
+                    onclick="switchView('history')"
+                    id="nav-history"
+                    class="nav-item text-indigo-200 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                    >Riwayat Transaksi</a
+                  >
+                </div>
+              </div>
+            </div>
+            <div class="hidden md:block">
+              <div class="ml-4 flex items-center md:ml-6">
+                <span
+                  id="user-info"
+                  class="text-indigo-100 text-sm mr-4 font-medium"
+                ></span>
+                <!-- Tombol Logout Web -->
+                <button
+                  onclick="logout()"
+                  class="flex items-center bg-indigo-800 hover:bg-indigo-600 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  <svg
+                    class="w-4 h-4 mr-1.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    ></path>
+                  </svg>
+                  Logout
+                </button>
+              </div>
+            </div>
+
+            <!-- Mobile menu button -->
+            <div class="-mr-2 flex md:hidden">
+              <button
+                type="button"
+                onclick="
+                  document
+                    .getElementById('mobile-menu')
+                    .classList.toggle('hidden')
+                "
+                class="bg-indigo-700 inline-flex items-center justify-center p-2 rounded-md text-indigo-200 hover:text-white hover:bg-indigo-600 focus:outline-none"
+              >
+                <svg
+                  class="h-6 w-6"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div class="md:hidden hidden" id="mobile-menu">
+          <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+            <a
+              href="#"
+              onclick="switchView('dashboard')"
+              class="text-white block px-3 py-2 rounded-md text-base font-medium bg-indigo-800"
+              >Pindah Stok</a
+            >
+            <a
+              href="#"
+              onclick="switchView('history')"
+              class="text-indigo-200 hover:bg-indigo-600 hover:text-white block px-3 py-2 rounded-md text-base font-medium"
+              >Riwayat Transaksi</a
+            >
+            <a
+              href="#"
+              onclick="logout()"
+              class="text-red-300 hover:bg-indigo-600 hover:text-white flex items-center px-3 py-2 rounded-md text-base font-medium mt-4"
+            >
+              <svg
+                class="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                ></path>
+              </svg>
+              Logout
+            </a>
+          </div>
+        </div>
+      </nav>
+
+      <!-- DASHBOARD VIEW -->
+      <main
+        id="dashboard-view"
+        class="flex-1 max-w-7xl w-full mx-auto py-6 sm:px-6 lg:px-8 hidden"
+      >
+        <div class="px-4 py-4 sm:px-0">
+          <h2 class="text-2xl font-bold text-slate-800 mb-6">Pindah Stok</h2>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Left Col: Stok List -->
+            <div class="lg:col-span-4 xl:col-span-4 flex flex-col h-full">
+              <div
+                class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex-1"
+              >
+                <div
+                  class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3"
+                >
+                  <h3 class="font-bold text-lg text-slate-800">
+                    Total Stok Tersedia
+                  </h3>
+                  <button
+                    onclick="loadStok()"
+                    id="btnRefreshStok"
+                    class="text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors"
+                  >
+                    <svg
+                      class="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      ></path>
+                    </svg>
+                  </button>
+                </div>
+                <div
+                  id="stokList"
+                  class="space-y-3 max-h-[700px] overflow-y-auto pr-2 custom-scrollbar"
+                >
+                  <p class="text-center text-slate-400 py-8 animate-pulse">
+                    Memuat data stok...
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Col: Form Pindah -->
+            <div class="lg:col-span-8 xl:col-span-8">
+              <div
+                class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200"
+              >
+                <form id="transferForm" class="space-y-6">
+                  <!-- SECTION: LOKASI & PETUGAS -->
+                  <div>
+                    <h3
+                      class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4"
+                    >
+                      LOKASI & PETUGAS
+                    </h3>
+                    <div
+                      class="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-5"
+                    >
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                          <label
+                            class="block text-sm font-semibold text-slate-700 mb-1"
+                            >Dari Lokasi</label
+                          >
+                          <select
+                            id="dari"
+                            required
+                            onchange="updateKeOptions()"
+                            class="w-full border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-3 border bg-white"
+                          >
+                            <option value="">-- Pilih Lokasi Asal --</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label
+                            class="block text-sm font-semibold text-slate-700 mb-1"
+                            >Ke Lokasi</label
+                          >
+                          <select
+                            id="ke"
+                            required
+                            onchange="handleKeChange()"
+                            class="w-full border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-3 border bg-white"
+                          >
+                            <option value="">-- Pilih Lokasi Tujuan --</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <!-- Form Tambah Lokasi Baru (Sesuai Logic Mobile) -->
+                      <div id="newLokasiWrapper" class="hidden transition-all">
+                        <label
+                          class="block text-sm font-semibold text-slate-700 mb-1"
+                          >Nama Lokasi Baru</label
+                        >
+                        <input
+                          type="text"
+                          id="lokasiBaru"
+                          class="w-full border-blue-200 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 p-3 border bg-blue-50"
+                          placeholder="Ketik nama lokasi baru..."
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          class="block text-sm font-semibold text-slate-700 mb-1"
+                          >Nama Petugas (PIC)</label
+                        >
+                        <input
+                          type="text"
+                          id="oleh"
+                          required
+                          class="w-full border-slate-300 rounded-lg shadow-sm p-3 border bg-slate-100 text-slate-500 cursor-not-allowed"
+                          placeholder="Otomatis terisi"
+                          readonly
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- SECTION: BARANG YANG DIPINDAH -->
+                  <div>
+                    <div class="flex justify-between items-center mb-4">
+                      <h3
+                        class="text-xs font-bold text-slate-400 uppercase tracking-wider"
+                      >
+                        BARANG YANG DIPINDAH
+                      </h3>
+                      <button
+                        type="button"
+                        onclick="tambahBarangManual()"
+                        class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-md transition-colors"
+                      >
+                        + Tambah Barang Lainnya
+                      </button>
+                    </div>
+                    <div
+                      class="bg-slate-50 p-5 rounded-xl border border-slate-200"
+                    >
+                      <div
+                        id="qtyInputsContainer"
+                        class="grid grid-cols-1 md:grid-cols-2 gap-4"
+                      >
+                        <!-- Injected by JS -->
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- SECTION: BUKTI -->
+                  <div>
+                    <h3
+                      class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4"
+                    >
+                      FOTO BUKTI
+                    </h3>
+                    <div
+                      class="bg-slate-50 p-5 rounded-xl border border-slate-200"
+                    >
+                      <label
+                        class="block text-sm font-semibold text-slate-700 mb-1"
+                        >Foto Surat Jalan (Opsional)</label
+                      >
+                      <input
+                        type="file"
+                        id="foto"
+                        accept="image/*"
+                        class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 border border-slate-300 rounded-lg bg-white cursor-pointer p-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="pt-2">
+                    <button
+                      type="button"
+                      onclick="showConfirmation()"
+                      id="btnSubmit"
+                      class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-4 rounded-xl shadow-lg hover:shadow-indigo-500/30 transition-all flex justify-center items-center text-base tracking-wide"
+                    >
+                      <span>Proses Pindah Stok</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- HISTORY VIEW -->
+      <main
+        id="history-view"
+        class="flex-1 max-w-7xl w-full mx-auto py-6 sm:px-6 lg:px-8 hidden"
+      >
+        <div class="px-4 py-4 sm:px-0">
+          <div
+            class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6"
+          >
+            <h2 class="text-2xl font-bold text-slate-800">Riwayat Transaksi</h2>
+          </div>
+
+          <!-- Filter Section -->
+          <div
+            class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 mb-6"
+          >
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-5 items-end">
+              <div>
+                <label
+                  class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2"
+                  >Tanggal Mulai</label
+                >
+                <input
+                  type="date"
+                  id="filterStart"
+                  class="w-full border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-3 text-sm border bg-slate-50"
+                />
+              </div>
+              <div>
+                <label
+                  class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2"
+                  >Tanggal Akhir</label
+                >
+                <input
+                  type="date"
+                  id="filterEnd"
+                  class="w-full border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-3 text-sm border bg-slate-50"
+                />
+              </div>
+              <div>
+                <label
+                  class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2"
+                  >Petugas (PIC)</label
+                >
+                <select
+                  id="filterPic"
+                  class="w-full border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-3 text-sm border bg-slate-50"
+                >
+                  <option value="">Semua Petugas</option>
+                  <!-- Diisi dari JS -->
+                </select>
+              </div>
+              <div>
+                <button
+                  onclick="loadHistory()"
+                  id="btnRefreshHistory"
+                  class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg text-sm font-semibold shadow transition-colors flex items-center justify-center"
+                >
+                  <svg
+                    class="w-4 h-4 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    ></path>
+                  </svg>
+                  Cari / Filter
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
+          >
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                  <tr>
+                    <th
+                      scope="col"
+                      class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider"
+                    >
+                      Waktu
+                    </th>
+                    <th
+                      scope="col"
+                      class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider"
+                    >
+                      PIC
+                    </th>
+                    <th
+                      scope="col"
+                      class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider"
+                    >
+                      Rute
+                    </th>
+                    <th
+                      scope="col"
+                      class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider"
+                    >
+                      Detail Barang
+                    </th>
+                    <th
+                      scope="col"
+                      class="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider"
+                    >
+                      Bukti
+                    </th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="historyTableBody"
+                  class="bg-white divide-y divide-slate-200 text-sm"
+                >
+                  <tr>
+                    <td
+                      colspan="5"
+                      class="px-6 py-12 text-center text-slate-500"
+                    >
+                      Silakan klik tombol cari...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- MAIN SCRIPT -->
+    <script>
+      // Logika Persis seperti di transfer_screen.dart
+      let JENIS_FIBER = [
+        "DRB KUNING",
+        "DRB ORANGE",
+        "MSU",
+        "GAS",
+        "GLOBAL",
+        "SCI",
+      ];
+      let ALL_LOCATIONS = [];
+      let IS_SUBMITTING = false;
+
+      document.addEventListener("DOMContentLoaded", () => {
+        renderQtyInputs();
+        initDateFilters();
+        checkSession();
+      });
+
+      // -------------------------
+      // AUTH & UI LOGIC
+      // -------------------------
+      function initDateFilters() {
+        const today = new Date();
+        const lastWeek = new Date();
+        lastWeek.setDate(today.getDate() - 7);
+        document.getElementById("filterEnd").valueAsDate = today;
+        document.getElementById("filterStart").valueAsDate = lastWeek;
+      }
+
+      function fetchAdminList() {
+        google.script.run
+          .withSuccessHandler((admins) => {
+            const sel = document.getElementById("filterPic");
+            sel.innerHTML = '<option value="">Semua Petugas</option>';
+            admins.forEach((a) => {
+              sel.innerHTML +=
+                '<option value="' +
+                a.username +
+                '">' +
+                a.username +
+                "</option>";
+            });
+          })
+          .webGetAdmin();
+      }
+
+      function checkSession() {
+        const user = localStorage.getItem("pindah_stok_user");
+        if (user) {
+          const userData = JSON.parse(user);
+          document.getElementById("user-info").textContent =
+            "Halo, " + userData.username;
+          document.getElementById("oleh").value = userData.username;
+
+          document.getElementById("login-view").classList.add("hidden");
+          document.getElementById("app-wrapper").classList.remove("hidden");
+
+          fetchAdminList();
+          switchView("dashboard");
+        } else {
+          document.getElementById("login-view").classList.remove("hidden");
+          document.getElementById("app-wrapper").classList.add("hidden");
+        }
+      }
+
+      function handleLogin(e) {
+        e.preventDefault();
+        const u = document.getElementById("username").value;
+        const p = document.getElementById("password").value;
+        const btn = document.getElementById("btnLogin");
+        const origText = btn.innerHTML;
+
+        btn.innerHTML = "Memeriksa...";
+        btn.disabled = true;
+
+        google.script.run
+          .withSuccessHandler((res) => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            if (res.success) {
+              localStorage.setItem(
+                "pindah_stok_user",
+                JSON.stringify(res.data),
+              );
+              showAlert("Login berhasil!");
+              checkSession();
+            } else {
+              showAlert(res.message, true);
+            }
+          })
+          .withFailureHandler((err) => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+            showAlert("Error: " + err.message, true);
+          })
+          .webLogin(u, p);
+      }
+
+      function logout() {
+        localStorage.removeItem("pindah_stok_user");
+        checkSession();
+      }
+
+      function switchView(viewName) {
+        document.getElementById("dashboard-view").classList.add("hidden");
+        document.getElementById("history-view").classList.add("hidden");
+
+        document.querySelectorAll(".nav-item").forEach((el) => {
+          el.classList.remove("bg-indigo-800", "text-white");
+          el.classList.add("text-indigo-200");
+        });
+
+        document
+          .getElementById("nav-" + viewName)
+          .classList.remove("text-indigo-200");
+        document
+          .getElementById("nav-" + viewName)
+          .classList.add("bg-indigo-800", "text-white");
+
+        if (viewName === "dashboard") {
+          document.getElementById("dashboard-view").classList.remove("hidden");
+          loadStok();
+        } else if (viewName === "history") {
+          document.getElementById("history-view").classList.remove("hidden");
+          loadHistory();
+        }
+        document.getElementById("mobile-menu").classList.add("hidden");
+      }
+
+      function showAlert(msg, isError = false) {
+        const box = document.getElementById("alertBox");
+        box.textContent = msg;
+        box.className =
+          "fixed top-4 right-4 z-50 max-w-sm w-full shadow-lg rounded-lg p-4 text-sm font-medium transition-all " +
+          (isError ? "bg-red-500 text-white" : "bg-emerald-500 text-white");
+        box.classList.remove("hidden");
+        setTimeout(() => {
+          box.classList.add("hidden");
+        }, 5000);
+      }
+
+      function formatDate(dateStr) {
+        if (!dateStr) return "-";
+        const d = new Date(dateStr);
+        return d.toLocaleString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      // -------------------------
+      // TRANSFER LOGIC
+      // -------------------------
+
+      // Render Qty Inputs with Increment/Decrement similar to App
+      function renderQtyInputs() {
+        const container = document.getElementById("qtyInputsContainer");
+        container.innerHTML = "";
+        JENIS_FIBER.forEach((jenis) => {
+          const safeId = jenis.replace(/\s+/g, "_");
+          const div = document.createElement("div");
+          div.className =
+            "flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm";
+
+          div.innerHTML =
+            '<span class="text-sm font-bold text-slate-700 bg-indigo-50 px-2 py-1 rounded text-indigo-700">' +
+            jenis +
+            "</span>" +
+            '<div class="flex items-center space-x-2">' +
+            '<button type="button" onclick="adjustQty(\'' +
+            safeId +
+            '\', -1)" class="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600 font-bold transition-colors">-</button>' +
+            '<input type="number" min="0" id="qty_' +
+            safeId +
+            '" data-jenis="' +
+            jenis +
+            '" value="0" class="qty-input w-16 border-slate-300 rounded-md p-1 border text-center text-sm font-bold text-slate-800 bg-white" oninput="if(this.value==\'\')this.value=\'0\'">' +
+            '<button type="button" onclick="adjustQty(\'' +
+            safeId +
+            '\', 1)" class="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600 font-bold transition-colors">+</button>' +
+            "</div>";
+          container.appendChild(div);
+        });
+      }
+
+      function adjustQty(safeId, amount) {
+        const input = document.getElementById("qty_" + safeId);
+        let current = parseInt(input.value) || 0;
+        let next = current + amount;
+        if (next < 0) next = 0;
+        input.value = next;
+      }
+
+      function tambahBarangManual() {
+        const nama = prompt(
+          "Masukkan nama jenis barang baru (Misal: KABEL LAN):",
+        );
+        if (nama && nama.trim() !== "") {
+          const upperName = nama.trim().toUpperCase();
+          if (!JENIS_FIBER.includes(upperName)) {
+            JENIS_FIBER.push(upperName);
+            renderQtyInputs();
+          } else {
+            alert("Jenis barang tersebut sudah ada di daftar.");
+          }
+        }
+      }
+
+      function handleKeChange() {
+        const keVal = document.getElementById("ke").value;
+        const wrap = document.getElementById("newLokasiWrapper");
+        if (keVal === "__TAMBAH_BARU__") {
+          wrap.classList.remove("hidden");
+          document.getElementById("lokasiBaru").required = true;
+        } else {
+          wrap.classList.add("hidden");
+          document.getElementById("lokasiBaru").required = false;
+          document.getElementById("lokasiBaru").value = "";
+        }
+      }
+
+      function updateKeOptions() {
+        const dariVal = document.getElementById("dari").value;
+        const selKe = document.getElementById("ke");
+
+        // Simpan yang sedang dipilih
+        const currentSelected = selKe.value;
+
+        selKe.innerHTML = '<option value="">-- Pilih Lokasi Tujuan --</option>';
+        ALL_LOCATIONS.forEach((lok) => {
+          if (lok !== dariVal) {
+            // Logic sama dengan dart: opsiTujuan = widget.daftarLokasi.where((l) => l != _dari)
+            selKe.innerHTML +=
+              '<option value="' + lok + '">' + lok + "</option>";
+          }
+        });
+        // Tambah opsi Lokasi Baru
+        selKe.innerHTML +=
+          '<option value="__TAMBAH_BARU__" class="font-bold text-blue-600">+ Tambah Lokasi Baru</option>';
+
+        // Restore selection if still valid
+        if (currentSelected && currentSelected !== dariVal) {
+          selKe.value = currentSelected;
+        }
+        handleKeChange();
+      }
+
+      function loadStok() {
+        const btn = document.getElementById("btnRefreshStok");
+        if (btn) btn.classList.add("animate-spin");
+
+        google.script.run
+          .withSuccessHandler((result) => {
+            if (btn) btn.classList.remove("animate-spin");
+
+            const list = document.getElementById("stokList");
+            const selDari = document.getElementById("dari");
+            const currentDari = selDari.value;
+
+            list.innerHTML = "";
+            ALL_LOCATIONS = [];
+            let lokasiSet = new Set();
+
+            if (!result || result.length === 0) {
+              list.innerHTML =
+                '<p class="text-center text-slate-400 py-8">Belum ada data stok</p>';
+            } else {
+              result.forEach((row) => {
+                lokasiSet.add(row.lokasi);
+                let totalBarang = 0;
+                let detailText = [];
+                for (let k in row.items) {
+                  if (row.items[k] > 0) {
+                    totalBarang += row.items[k];
+                    detailText.push(
+                      '<span class="inline-block bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-xs mr-2 mb-2 border border-slate-200">' +
+                        k +
+                        ': <span class="font-bold text-slate-800">' +
+                        row.items[k] +
+                        "</span></span>",
+                    );
+                  }
+                }
+
+                if (totalBarang > 0) {
+                  list.innerHTML +=
+                    '<div class="bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all group mb-3">' +
+                    '<div class="flex justify-between items-center mb-3">' +
+                    '<div class="flex items-center">' +
+                    '<div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center mr-3 group-hover:bg-indigo-600 group-hover:text-white transition-colors shadow-sm">' +
+                    '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>' +
+                    "</div>" +
+                    '<span class="font-bold text-slate-800 text-base">' +
+                    row.lokasi +
+                    "</span>" +
+                    "</div>" +
+                    '<span class="bg-indigo-50 text-indigo-700 font-bold px-3 py-1 rounded-full text-xs border border-indigo-100">' +
+                    totalBarang +
+                    "</span>" +
+                    "</div>" +
+                    '<div class="flex flex-wrap">' +
+                    detailText.join("") +
+                    "</div>" +
+                    "</div>";
+                }
+              });
+            }
+
+            ALL_LOCATIONS = Array.from(lokasiSet);
+
+            selDari.innerHTML =
+              '<option value="">-- Pilih Lokasi Asal --</option>';
+            ALL_LOCATIONS.forEach((lok) => {
+              selDari.innerHTML +=
+                '<option value="' + lok + '">' + lok + "</option>";
+            });
+
+            if (currentDari) selDari.value = currentDari;
+            updateKeOptions();
+          })
+          .withFailureHandler((err) => {
+            if (btn) btn.classList.remove("animate-spin");
+            showAlert("Gagal memuat stok: " + err.message, true);
+          })
+          .webGetStok();
+      }
+
+      // CONFIRMATION DIALOG LOGIC
+      function showConfirmation() {
+        if (IS_SUBMITTING) return;
+
+        const dari = document.getElementById("dari").value;
+        let ke = document.getElementById("ke").value;
+        const oleh = document.getElementById("oleh").value;
+        const foto =
+          document.getElementById("foto").files.length > 0
+            ? "Terlampir"
+            : "Tidak ada";
+
+        if (!dari) return showAlert("Pilih lokasi asal!", true);
+        if (!ke) return showAlert("Pilih lokasi tujuan!", true);
+
+        if (ke === "__TAMBAH_BARU__") {
+          const keBaru = document.getElementById("lokasiBaru").value.trim();
+          if (!keBaru) return showAlert("Nama lokasi baru wajib diisi!", true);
+          ke = keBaru;
+        }
+
+        if (dari === ke)
+          return showAlert("Lokasi asal dan tujuan tidak boleh sama!", true);
+
+        let qtysHtml = "";
+        let totalQty = 0;
+        document.querySelectorAll(".qty-input").forEach((input) => {
+          const val = parseInt(input.value) || 0;
+          if (val > 0) {
+            qtysHtml +=
+              '<div class="flex justify-between py-1 border-b border-slate-100 last:border-0"><span class="text-slate-600">' +
+              input.dataset.jenis +
+              '</span><span class="font-bold text-slate-800">' +
+              val +
+              " pcs</span></div>";
+            totalQty += val;
+          }
+        });
+
+        if (totalQty <= 0)
+          return showAlert(
+            "Minimal 1 jenis barang harus diisi lebih dari 0",
+            true,
+          );
+
+        const contentHtml =
+          '<div class="flex justify-between py-1"><span class="text-slate-500 w-24">Dari</span><span class="font-bold text-slate-800">' +
+          dari +
+          "</span></div>" +
+          '<div class="flex justify-between py-1"><span class="text-slate-500 w-24">Ke</span><span class="font-bold text-slate-800">' +
+          ke +
+          "</span></div>" +
+          '<div class="flex justify-between py-1"><span class="text-slate-500 w-24">PIC</span><span class="font-bold text-slate-800">' +
+          oleh +
+          "</span></div>" +
+          '<hr class="my-3">' +
+          '<div class="font-bold text-slate-800 mb-2">Barang dipindahkan:</div>' +
+          '<div class="bg-slate-50 p-3 rounded-lg border border-slate-200">' +
+          qtysHtml +
+          "</div>" +
+          '<div class="flex justify-between py-2 mt-2"><span class="text-slate-500 w-24">Foto Bukti</span><span class="font-bold text-slate-800">' +
+          foto +
+          "</span></div>";
+
+        document.getElementById("confirmContent").innerHTML = contentHtml;
+        document.getElementById("confirmModal").classList.remove("hidden");
+      }
+
+      function closeConfirmModal() {
+        document.getElementById("confirmModal").classList.add("hidden");
+      }
+
+      function executeTransfer() {
+        closeConfirmModal();
+        IS_SUBMITTING = true;
+
+        const btnSubmit = document.getElementById("btnSubmit");
+        const originalText = btnSubmit.innerHTML;
+
+        const dari = document.getElementById("dari").value;
+        let ke = document.getElementById("ke").value;
+        if (ke === "__TAMBAH_BARU__")
+          ke = document.getElementById("lokasiBaru").value.trim();
+        const oleh = document.getElementById("oleh").value;
+
+        let qtyMap = {};
+        document.querySelectorAll(".qty-input").forEach((input) => {
+          const val = parseInt(input.value) || 0;
+          if (val > 0) qtyMap[input.dataset.jenis] = val;
+        });
+
+        const fileInput = document.getElementById("foto");
+        const file = fileInput.files[0];
+
+        btnSubmit.innerHTML = "Memproses...";
+
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            const dataUrl = e.target.result;
+            const mimeType = dataUrl.split(";")[0].split(":")[1];
+            const base64Data = dataUrl.split(",")[1];
+            kirimKeBackend(
+              dari,
+              ke,
+              qtyMap,
+              oleh,
+              base64Data,
+              mimeType,
+              btnSubmit,
+              originalText,
+            );
+          };
+          reader.readAsDataURL(file);
+        } else {
+          kirimKeBackend(
+            dari,
+            ke,
+            qtyMap,
+            oleh,
+            null,
+            null,
+            btnSubmit,
+            originalText,
+          );
+        }
+      }
+
+      function kirimKeBackend(
+        dari,
+        ke,
+        qtyMap,
+        oleh,
+        fotoBase64,
+        fotoMimeType,
+        btnSubmit,
+        originalText,
+      ) {
+        google.script.run
+          .withSuccessHandler((res) => {
+            IS_SUBMITTING = false;
+            btnSubmit.innerHTML = originalText;
+            if (res.success) {
+              showAlert(res.message);
+              // Reset Form
+              document.getElementById("dari").value = "";
+              document.getElementById("ke").value = "";
+              document.getElementById("foto").value = "";
+              document.getElementById("lokasiBaru").value = "";
+              handleKeChange(); // Sembunyikan input baru
+              document
+                .querySelectorAll(".qty-input")
+                .forEach((i) => (i.value = "0"));
+              loadStok();
+            } else {
+              showAlert(res.message, true);
+            }
+          })
+          .withFailureHandler((err) => {
+            IS_SUBMITTING = false;
+            btnSubmit.innerHTML = originalText;
+            showAlert("Gagal: " + err.message, true);
+          })
+          .webProsesPindahStok(
+            dari,
+            ke,
+            qtyMap,
+            oleh,
+            fotoBase64,
+            fotoMimeType,
+          );
+      }
+
+      // -------------------------
+      // HISTORY LOGIC
+      // -------------------------
+      function loadHistory() {
+        const btn = document.getElementById("btnRefreshHistory");
+        const tbody = document.getElementById("historyTableBody");
+
+        const startDate = document.getElementById("filterStart").value;
+        const endDate = document.getElementById("filterEnd").value;
+        const pic = document.getElementById("filterPic").value;
+
+        if (btn) btn.innerHTML = "Memuat...";
+        tbody.innerHTML =
+          '<tr><td colspan="5" class="px-6 py-12 text-center text-slate-400">Sedang menarik data...</td></tr>';
+
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (btn)
+              btn.innerHTML =
+                '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg> Cari / Filter';
+
+            tbody.innerHTML = "";
+            if (!res || res.length === 0) {
+              tbody.innerHTML =
+                '<tr><td colspan="5" class="px-6 py-12 text-center text-slate-500 font-medium">Data tidak ditemukan pada rentang tanggal tersebut.</td></tr>';
+              return;
+            }
+
+            res.forEach((row, i) => {
+              let itemsHtml = [];
+              for (let k in row.items) {
+                if (row.items[k] > 0) {
+                  itemsHtml.push(
+                    '<span class="inline-block bg-indigo-50 text-indigo-700 text-xs px-2.5 py-1 rounded-md border border-indigo-100 mr-1.5 mb-1.5">' +
+                      k +
+                      ": <b>" +
+                      row.items[k] +
+                      "</b></span>",
+                  );
+                }
+              }
+
+              const bgClass = i % 2 === 0 ? "bg-white" : "bg-slate-50";
+              const linkFoto = row.fotoUrl
+                ? '<a href="' +
+                  row.fotoUrl +
+                  '" target="_blank" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center shadow-sm border border-indigo-100">Lihat Foto</a>'
+                : '<span class="text-slate-400 text-xs italic">-</span>';
+
+              tbody.innerHTML +=
+                '<tr class="' +
+                bgClass +
+                ' hover:bg-slate-100 transition-colors">' +
+                '<td class="px-6 py-5 whitespace-nowrap text-slate-600 text-sm font-medium">' +
+                formatDate(row.timestamp) +
+                "</td>" +
+                '<td class="px-6 py-5 whitespace-nowrap text-slate-800 font-bold text-sm">' +
+                row.oleh +
+                "</td>" +
+                '<td class="px-6 py-5 whitespace-nowrap text-sm">' +
+                '<div class="flex items-center text-slate-700"><span class="font-bold text-indigo-900">' +
+                row.dari +
+                '</span> <svg class="w-4 h-4 mx-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg> <span class="font-bold text-emerald-700">' +
+                row.ke +
+                "</span></div>" +
+                "</td>" +
+                '<td class="px-6 py-5 text-sm max-w-xs flex-wrap">' +
+                itemsHtml.join("") +
+                "</td>" +
+                '<td class="px-6 py-5 whitespace-nowrap text-center">' +
+                linkFoto +
+                "</td>" +
+                "</tr>";
+            });
+          })
+          .withFailureHandler((err) => {
+            if (btn)
+              btn.innerHTML =
+                '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg> Cari / Filter';
+            showAlert("Gagal memuat riwayat: " + err.message, true);
+            tbody.innerHTML =
+              '<tr><td colspan="5" class="px-6 py-12 text-center text-red-500 font-medium">Error: ' +
+              err.message +
+              "</td></tr>";
+          })
+          .webGetRiwayat(100, startDate, endDate, pic);
+      }
+    </script>
+  </body>
+</html>

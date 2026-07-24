@@ -5,42 +5,62 @@
  */
 
 // --- KEAMANAN ---
-const API_KEY = 'RAHASIA123';
+const API_KEY = "RAHASIA123";
 
-const SHEET_LOKASI    = 'Lokasi';
-const SHEET_STOK      = 'Stok';
-const SHEET_TRANSAKSI = 'Transaksi';
-const SHEET_ADMIN     = 'Admin';
+const SHEET_LOKASI = "Lokasi";
+const SHEET_STOK = "Stok";
+const SHEET_TRANSAKSI = "Transaksi";
+const SHEET_ADMIN = "Admin";
 
-const FOLDER_FOTO_ID  = '1PwYsdZOpSb_0lOldRvLp-i-no16KVIhB';
+const FOLDER_FOTO_ID = "1PwYsdZOpSb_0lOldRvLp-i-no16KVIhB";
 
-const INITIAL_JENIS_FIBER = ['DRB KUNING', 'DRB ORANGE', 'MSU', 'GAS', 'GLOBAL', 'SCI'];
-const FIXED_TRX_COLS = ['Timestamp', 'Dari', 'Ke', 'PIC', 'FotoURL'];
+const INITIAL_JENIS_FIBER = [
+  "DRB KUNING",
+  "DRB ORANGE",
+  "MSU",
+  "GAS",
+  "GLOBAL",
+  "SCI",
+];
+const FIXED_TRX_COLS = ["Timestamp", "Dari", "Ke", "PIC", "FotoURL"];
 
 function doGet(e) {
   try {
-    if (e.parameter.apiKey !== API_KEY) {
-      return jsonResponse({ success: false, message: 'Unauthorized access' });
+    // 1. CEK AKSES WEB BROWSER
+    // Jika tidak ada apiKey dan tidak ada action, asumsikan ini akses dari browser biasa
+    if (!e.parameter || (!e.parameter.apiKey && !e.parameter.action)) {
+      return HtmlService.createTemplateFromFile("Index")
+        .evaluate()
+        .setTitle("Pindah Stok Apps")
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
-    const action = e.parameter.action || 'getStok';
 
-    if (action === 'getLokasi') {
+    // 2. CEK AKSES API MOBILE
+    if (e.parameter.apiKey !== API_KEY) {
+      return jsonResponse({ success: false, message: "Unauthorized access" });
+    }
+    const action = e.parameter.action || "getStok";
+
+    if (action === "getLokasi") {
       return jsonResponse({ success: true, data: getLokasi() });
     }
-    if (action === 'getAdmin') {
+    if (action === "getAdmin") {
       return jsonResponse({ success: true, data: getAdmin() });
     }
-    if (action === 'getStok') {
+    if (action === "getStok") {
       return jsonResponse({ success: true, data: getStok() });
     }
-    if (action === 'getRiwayat') {
+    if (action === "getRiwayat") {
       const limit = Number(e.parameter.limit) || 50;
       const startDate = e.parameter.startDate;
       const endDate = e.parameter.endDate;
       const pic = e.parameter.pic;
-      return jsonResponse({ success: true, data: getRiwayat(limit, startDate, endDate, pic) });
+      return jsonResponse({
+        success: true,
+        data: getRiwayat(limit, startDate, endDate, pic),
+      });
     }
-    return jsonResponse({ success: false, message: 'Action tidak dikenal' });
+    return jsonResponse({ success: false, message: "Action tidak dikenal" });
   } catch (err) {
     return jsonResponse({ success: false, message: err.toString() });
   }
@@ -50,12 +70,12 @@ function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
     if (body.apiKey !== API_KEY) {
-      return jsonResponse({ success: false, message: 'Unauthorized access' });
+      return jsonResponse({ success: false, message: "Unauthorized access" });
     }
-    if (body.action === 'pindahStok') {
+    if (body.action === "pindahStok") {
       return jsonResponse(prosesPindahStok(body));
     }
-    return jsonResponse({ success: false, message: 'Action tidak dikenal' });
+    return jsonResponse({ success: false, message: "Action tidak dikenal" });
   } catch (err) {
     return jsonResponse({ success: false, message: err.toString() });
   }
@@ -78,8 +98,8 @@ function getAdmin() {
   let sheet = ss.getSheetByName(SHEET_ADMIN);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_ADMIN);
-    sheet.appendRow(['Username', 'Password', 'Role']);
-    sheet.getRange('A1:C1').setFontWeight('bold');
+    sheet.appendRow(["Username", "Password", "Role"]);
+    sheet.getRange("A1:C1").setFontWeight("bold");
     return [];
   }
   const data = sheet.getDataRange().getValues();
@@ -91,8 +111,8 @@ function getAdmin() {
     if (username) {
       admins.push({
         username: username.toString().trim(),
-        password: password ? password.toString().trim() : '',
-        role: role ? role.toString().trim().toLowerCase() : 'admin'
+        password: password ? password.toString().trim() : "",
+        role: role ? role.toString().trim().toLowerCase() : "admin",
       });
     }
   }
@@ -105,37 +125,39 @@ function getStok() {
   if (data.length <= 1) return [];
 
   const headers = data[0];
-  
-  return data.slice(1)
-    .filter(r => r[0])
-    .map(r => {
+
+  return data
+    .slice(1)
+    .filter((r) => r[0])
+    .map((r) => {
       const items = {};
       for (let j = 1; j < headers.length; j++) {
         const key = headers[j].toString().trim();
         if (key) items[key] = Number(r[j]) || 0;
       }
       return {
-        lokasi: r[0]?.toString() ?? '',
-        items: items
+        lokasi: r[0]?.toString() ?? "",
+        items: items,
       };
     });
 }
 
 function getRiwayat(limit, startDateStr, endDateStr, picStr) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TRANSAKSI);
+  const sheet =
+    SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TRANSAKSI);
   if (!sheet) return [];
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return [];
 
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
-  
-  const tsIdx = headers.indexOf('Timestamp');
-  const dariIdx = headers.indexOf('Dari');
-  const keIdx = headers.indexOf('Ke');
-  const olehIdx = headers.indexOf('PIC');
-  const fotoIdx = headers.indexOf('FotoURL');
-  
+
+  const tsIdx = headers.indexOf("Timestamp");
+  const dariIdx = headers.indexOf("Dari");
+  const keIdx = headers.indexOf("Ke");
+  const olehIdx = headers.indexOf("PIC");
+  const fotoIdx = headers.indexOf("FotoURL");
+
   const startDate = startDateStr ? new Date(startDateStr) : null;
   const endDate = endDateStr ? new Date(endDateStr) : null;
   if (endDate) endDate.setHours(23, 59, 59, 999);
@@ -149,10 +171,10 @@ function getRiwayat(limit, startDateStr, endDateStr, picStr) {
     if (picStr && r[olehIdx] !== picStr) continue;
     filteredData.push(r);
   }
-  
+
   const numRows = Math.min(limit, filteredData.length);
-  const startRow = filteredData.length - numRows; 
-  
+  const startRow = filteredData.length - numRows;
+
   const result = [];
   for (let i = filteredData.length - 1; i >= startRow; i--) {
     const r = filteredData[i];
@@ -160,32 +182,38 @@ function getRiwayat(limit, startDateStr, endDateStr, picStr) {
     for (let j = 0; j < headers.length; j++) {
       const colName = headers[j];
       if (!FIXED_TRX_COLS.includes(colName) && colName) {
-         items[colName] = Number(r[j]) || 0;
+        items[colName] = Number(r[j]) || 0;
       }
     }
     result.push({
       timestamp: r[tsIdx],
-      dari:      r[dariIdx],
-      ke:        r[keIdx],
-      oleh:      r[olehIdx],
-      fotoUrl:   r[fotoIdx],
-      items:     items
+      dari: r[dariIdx],
+      ke: r[keIdx],
+      oleh: r[olehIdx],
+      fotoUrl: r[fotoIdx],
+      items: items,
     });
   }
   return result;
 }
 
 function prosesPindahStok(body) {
-  const dari  = body.dari;
-  const ke    = body.ke;
-  const qtyMap = body.qty; 
-  const oleh  = body.oleh || 'Tidak diketahui';
+  const dari = body.dari;
+  const ke = body.ke;
+  const qtyMap = body.qty;
+  const oleh = body.oleh || "Tidak diketahui";
 
   if (!dari || !ke || !qtyMap) {
-    return { success: false, message: 'Data tidak lengkap: dari, ke, dan qty wajib diisi' };
+    return {
+      success: false,
+      message: "Data tidak lengkap: dari, ke, dan qty wajib diisi",
+    };
   }
   if (dari === ke) {
-    return { success: false, message: 'Lokasi asal dan tujuan tidak boleh sama' };
+    return {
+      success: false,
+      message: "Lokasi asal dan tujuan tidak boleh sama",
+    };
   }
 
   const lock = LockService.getScriptLock();
@@ -202,43 +230,63 @@ function prosesPindahStok(body) {
       if (q > 0) {
         let kIdx = headerStok.indexOf(jenis);
         if (kIdx === -1) {
-           kIdx = headerStok.length;
-           headerStok.push(jenis);
-           stokSheet.getRange(1, kIdx + 1).setValue(jenis);
-           
-           for (let r = 1; r < data.length; r++) {
-             data[r].push(0);
-           }
+          kIdx = headerStok.length;
+          headerStok.push(jenis);
+          stokSheet.getRange(1, kIdx + 1).setValue(jenis);
+
+          for (let r = 1; r < data.length; r++) {
+            data[r].push(0);
+          }
         }
         itemsDipindah.push({ jenis: jenis, qty: q, kolomIdx: kIdx });
       }
     }
 
     if (itemsDipindah.length === 0) {
-      return { success: false, message: 'Semua jumlah jenis barang 0, tidak ada yang dipindahkan' };
+      return {
+        success: false,
+        message: "Semua jumlah jenis barang 0, tidak ada yang dipindahkan",
+      };
     }
 
-    let fotoUrl = '';
+    let fotoUrl = "";
     if (body.fotoBase64) {
       try {
-        fotoUrl = simpanFotoSuratJalan(body.fotoBase64, body.fotoMimeType || 'image/jpeg', dari, ke);
+        fotoUrl = simpanFotoSuratJalan(
+          body.fotoBase64,
+          body.fotoMimeType || "image/jpeg",
+          dari,
+          ke,
+        );
       } catch (e) {
-        return { success: false, message: 'Gagal upload foto surat jalan. Transaksi dibatalkan. (' + e.message + ')' };
+        return {
+          success: false,
+          message:
+            "Gagal upload foto surat jalan. Transaksi dibatalkan. (" +
+            e.message +
+            ")",
+        };
       }
     }
 
-    let barisDari = -1, barisKe = -1;
+    let barisDari = -1,
+      barisKe = -1;
     for (let i = 1; i < data.length; i++) {
       if (data[i][0] === dari) barisDari = i;
-      if (data[i][0] === ke)   barisKe   = i;
+      if (data[i][0] === ke) barisKe = i;
     }
 
-    if (barisDari === -1) return { success: false, message: 'Lokasi asal "' + dari + '" tidak ditemukan' };
-    
+    if (barisDari === -1)
+      return {
+        success: false,
+        message: 'Lokasi asal "' + dari + '" tidak ditemukan',
+      };
+
     if (barisKe === -1) {
-      const lokasiSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_LOKASI);
+      const lokasiSheet =
+        SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_LOKASI);
       if (lokasiSheet) lokasiSheet.appendRow([ke]);
-      
+
       const newRow = new Array(headerStok.length).fill(0);
       newRow[0] = ke;
       stokSheet.appendRow(newRow);
@@ -249,43 +297,59 @@ function prosesPindahStok(body) {
     for (const item of itemsDipindah) {
       const stokDari = Number(data[barisDari][item.kolomIdx]) || 0;
       if (stokDari < item.qty) {
-        return { success: false, message: 'Stok ' + item.jenis + ' di ' + dari + ' tidak cukup (butuh ' + item.qty + ', sisa ' + stokDari + ')' };
+        return {
+          success: false,
+          message:
+            "Stok " +
+            item.jenis +
+            " di " +
+            dari +
+            " tidak cukup (butuh " +
+            item.qty +
+            ", sisa " +
+            stokDari +
+            ")",
+        };
       }
     }
 
     for (const item of itemsDipindah) {
       const stokDariLama = Number(data[barisDari][item.kolomIdx]) || 0;
-      stokSheet.getRange(barisDari + 1, item.kolomIdx + 1).setValue(stokDariLama - item.qty);
-      
+      stokSheet
+        .getRange(barisDari + 1, item.kolomIdx + 1)
+        .setValue(stokDariLama - item.qty);
+
       const stokKeLama = Number(data[barisKe][item.kolomIdx]) || 0;
-      stokSheet.getRange(barisKe + 1, item.kolomIdx + 1).setValue(stokKeLama + item.qty);
+      stokSheet
+        .getRange(barisKe + 1, item.kolomIdx + 1)
+        .setValue(stokKeLama + item.qty);
     }
 
     const trxSheet = getOrCreateTransaksiSheet();
     const trxData = trxSheet.getDataRange().getValues();
     const trxHeader = trxData[0];
-    
+
     for (const item of itemsDipindah) {
       if (trxHeader.indexOf(item.jenis) === -1) {
-         const picIndex = trxHeader.indexOf('PIC');
-         if (picIndex !== -1) {
-           trxSheet.insertColumnBefore(picIndex + 1);
-           trxSheet.getRange(1, picIndex + 1).setValue(item.jenis);
-           trxHeader.splice(picIndex, 0, item.jenis);
-         } else {
-           trxHeader.push(item.jenis);
-           trxSheet.getRange(1, trxHeader.length).setValue(item.jenis);
-         }
+        const picIndex = trxHeader.indexOf("PIC");
+        if (picIndex !== -1) {
+          trxSheet.insertColumnBefore(picIndex + 1);
+          trxSheet.getRange(1, picIndex + 1).setValue(item.jenis);
+          trxHeader.splice(picIndex, 0, item.jenis);
+        } else {
+          trxHeader.push(item.jenis);
+          trxSheet.getRange(1, trxHeader.length).setValue(item.jenis);
+        }
       }
     }
 
-    const newRowTrx = new Array(trxHeader.length).fill('');
-    newRowTrx[trxHeader.indexOf('Timestamp')] = new Date();
-    newRowTrx[trxHeader.indexOf('Dari')] = dari;
-    newRowTrx[trxHeader.indexOf('Ke')] = ke;
-    newRowTrx[trxHeader.indexOf('PIC')] = oleh;
-    newRowTrx[trxHeader.indexOf('FotoURL')] = fotoUrl;
-    
+    const newRowTrx = new Array(trxHeader.length).fill("");
+    newRowTrx[trxHeader.indexOf("Timestamp")] = new Date();
+    newRowTrx[trxHeader.indexOf("Dari")] = dari;
+    newRowTrx[trxHeader.indexOf("Ke")] = ke;
+    newRowTrx[trxHeader.indexOf("PIC")] = oleh;
+    newRowTrx[trxHeader.indexOf("FotoURL")] = fotoUrl;
+
     for (const item of itemsDipindah) {
       newRowTrx[trxHeader.indexOf(item.jenis)] = item.qty;
     }
@@ -294,8 +358,8 @@ function prosesPindahStok(body) {
 
     return {
       success: true,
-      message: 'Stok berhasil dipindah',
-      data: { dari, ke, qtyMap, fotoUrl }
+      message: "Stok berhasil dipindah",
+      data: { dari, ke, qtyMap, fotoUrl },
     };
   } finally {
     lock.releaseLock();
@@ -307,7 +371,7 @@ function getOrCreateStokSheet() {
   let sheet = ss.getSheetByName(SHEET_STOK);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_STOK);
-    sheet.appendRow(['Lokasi', ...INITIAL_JENIS_FIBER]);
+    sheet.appendRow(["Lokasi", ...INITIAL_JENIS_FIBER]);
   }
   return sheet;
 }
@@ -317,9 +381,14 @@ function getOrCreateTransaksiSheet() {
   let sheet = ss.getSheetByName(SHEET_TRANSAKSI);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_TRANSAKSI);
-    sheet.appendRow(['Timestamp', 'Dari', 'Ke', 'Oleh', 'FotoURL', ...INITIAL_JENIS_FIBER]);
-  } else {
-    // If sheet exists but FotoURL is at the end, we just dynamically append to the right. It doesn't break logic.
+    sheet.appendRow([
+      "Timestamp",
+      "Dari",
+      "Ke",
+      "PIC",
+      "FotoURL",
+      ...INITIAL_JENIS_FIBER,
+    ]);
   }
   return sheet;
 }
@@ -327,8 +396,9 @@ function getOrCreateTransaksiSheet() {
 function simpanFotoSuratJalan(base64Data, mimeType, dari, ke) {
   const folder = DriveApp.getFolderById(FOLDER_FOTO_ID);
   const bytes = Utilities.base64Decode(base64Data);
-  const ext = (mimeType.split('/')[1]) || 'jpg';
-  const fileName = 'SJ_' + dari + '_ke_' + ke + '_' + new Date().getTime() + '.' + ext;
+  const ext = mimeType.split("/")[1] || "jpg";
+  const fileName =
+    "SJ_" + dari + "_ke_" + ke + "_" + new Date().getTime() + "." + ext;
   const blob = Utilities.newBlob(bytes, mimeType, fileName);
   const file = folder.createFile(blob);
   try {
@@ -336,10 +406,55 @@ function simpanFotoSuratJalan(base64Data, mimeType, dari, ke) {
   } catch (e) {
     // Abaikan error jika aturan Workspace (kantor) melarang akses publik
   }
-  return 'https://drive.google.com/uc?id=' + file.getId();
+  return "https://drive.google.com/uc?id=" + file.getId();
 }
 
 function jsonResponse(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(
+    ContentService.MimeType.JSON,
+  );
+}
+
+// ============================================
+// FUNGSI WRAPPER UNTUK WEB (google.script.run)
+// ============================================
+
+// Fungsi ini dipanggil dari Index.html tanpa perlu API_KEY (karena dijalankan dalam sesi user)
+function webGetStok() {
+  return getStok();
+}
+
+function webGetRiwayat(limit, startDate, endDate, pic) {
+  return getRiwayat(limit, startDate, endDate, pic);
+}
+
+function webGetAdmin() {
+  return getAdmin();
+}
+
+function webProsesPindahStok(dari, ke, qty, oleh, fotoBase64, fotoMimeType) {
+  // Kita bypass pengecekan apiKey di backend karena akses web sudah dilindungi oleh autentikasi Google akun yang mengakses Web App ini.
+  return prosesPindahStok({
+    dari: dari,
+    ke: ke,
+    qty: qty,
+    oleh: oleh,
+    fotoBase64: fotoBase64,
+    fotoMimeType: fotoMimeType,
+  });
+}
+
+function webLogin(username, password) {
+  const admins = getAdmin();
+  const user = admins.find(
+    (a) => a.username === username && a.password === password,
+  );
+  if (user) {
+    return {
+      success: true,
+      data: { username: user.username, role: user.role },
+    };
+  } else {
+    return { success: false, message: "Username atau password salah" };
+  }
 }
