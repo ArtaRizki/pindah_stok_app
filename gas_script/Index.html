@@ -165,139 +165,34 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex items-center justify-between h-16">
             <div class="flex items-center">
-              <div
-                class="flex-shrink-0 flex items-center text-white font-bold text-xl tracking-tight"
-              >
-                <svg
-                  class="w-6 h-6 mr-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                  ></path>
+              <div class="flex-shrink-0 flex items-center text-white font-bold text-xl tracking-tight">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                 </svg>
                 Fiber DRB
               </div>
-              <div class="hidden md:block">
-                <div class="ml-10 flex items-baseline space-x-4">
-                  <a
-                    href="#"
-                    onclick="switchView('dashboard')"
-                    id="nav-dashboard"
-                    class="nav-item text-white px-3 py-2 rounded-md text-sm font-medium bg-indigo-800"
-                    >Pindah Stok</a
-                  >
-                  <a
-                    href="#"
-                    onclick="switchView('history')"
-                    id="nav-history"
-                    class="nav-item text-indigo-200 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                    >Riwayat Transaksi</a
-                  >
-                </div>
-              </div>
-            </div>
-            <div class="hidden md:block">
-              <div class="ml-4 flex items-center md:ml-6">
-                <span
-                  id="user-info"
-                  class="text-indigo-100 text-sm mr-4 font-medium"
-                ></span>
-                <!-- Tombol Logout Web -->
-                <button
-                  onclick="logout()"
-                  class="flex items-center bg-indigo-800 hover:bg-indigo-600 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  <svg
-                    class="w-4 h-4 mr-1.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                    ></path>
-                  </svg>
-                  Logout
-                </button>
+              
+              <!-- Menu dipindah ke sini (Samping Fiber DRB) tanpa disembunyikan di layar kecil -->
+              <div class="ml-6 flex items-center space-x-2 sm:space-x-4">
+                <a href="#" onclick="switchView('dashboard')" id="nav-dashboard" class="nav-item text-white px-3 py-2 rounded-md text-sm font-medium bg-indigo-800">Pindah Stok</a>
+                <a href="#" onclick="switchView('history')" id="nav-history" class="nav-item text-indigo-200 hover:bg-indigo-600 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">Riwayat</a>
               </div>
             </div>
 
-            <!-- Mobile menu button -->
-            <div class="-mr-2 flex md:hidden">
-              <button
-                type="button"
-                onclick="
-                  document
-                    .getElementById('mobile-menu')
-                    .classList.toggle('hidden')
-                "
-                class="bg-indigo-700 inline-flex items-center justify-center p-2 rounded-md text-indigo-200 hover:text-white hover:bg-indigo-600 focus:outline-none"
-              >
-                <svg
-                  class="h-6 w-6"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
+            <!-- Bagian Kanan Navbar (Logout) -->
+            <div class="flex items-center">
+              <span id="user-info" class="text-indigo-100 text-sm mr-4 font-medium hidden sm:block"></span>
+              <button onclick="logout()" class="flex items-center bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md text-sm font-bold shadow transition-colors">
+                <svg class="w-4 h-4 sm:mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                 </svg>
+                <span class="hidden sm:inline">Logout</span>
               </button>
             </div>
+
           </div>
         </div>
 
-        <!-- Mobile Menu -->
-        <div class="md:hidden hidden" id="mobile-menu">
-          <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <a
-              href="#"
-              onclick="switchView('dashboard')"
-              class="text-white block px-3 py-2 rounded-md text-base font-medium bg-indigo-800"
-              >Pindah Stok</a
-            >
-            <a
-              href="#"
-              onclick="switchView('history')"
-              class="text-indigo-200 hover:bg-indigo-600 hover:text-white block px-3 py-2 rounded-md text-base font-medium"
-              >Riwayat Transaksi</a
-            >
-            <a
-              href="#"
-              onclick="logout()"
-              class="text-red-300 hover:bg-indigo-600 hover:text-white flex items-center px-3 py-2 rounded-md text-base font-medium mt-4"
-            >
-              <svg
-                class="w-5 h-5 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                ></path>
-              </svg>
-              Logout
-            </a>
-          </div>
-        </div>
       </nav>
 
       <!-- DASHBOARD VIEW -->
