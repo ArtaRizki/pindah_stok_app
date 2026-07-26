@@ -5,7 +5,13 @@ import '../models/models.dart';
 import '../services/api_service.dart';
 
 class RiwayatTransaksiScreen extends StatefulWidget {
-  const RiwayatTransaksiScreen({super.key});
+  final String role;
+  final String picName;
+  const RiwayatTransaksiScreen({
+    super.key,
+    required this.role,
+    required this.picName,
+  });
 
   @override
   State<RiwayatTransaksiScreen> createState() => _RiwayatTransaksiScreenState();
@@ -22,24 +28,32 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
   String? _selectedPic;
   List<String> _adminList = [];
 
+  bool get _isSuperadmin => widget.role == 'superadmin';
+
   @override
   void initState() {
     super.initState();
     _endDate = DateTime.now();
     _startDate = _endDate!.subtract(const Duration(days: 7));
+    // Admin biasa: auto-set filter ke username sendiri
+    if (!_isSuperadmin) {
+      _selectedPic = widget.picName;
+    }
     _fetchAdminAndRiwayat();
   }
 
   Future<void> _fetchAdminAndRiwayat() async {
-    try {
-      final admins = await ApiService.getAdmin();
-      if (mounted) {
-        setState(() {
-          _adminList = admins.map((e) => e['username'] ?? '').where((u) => u.isNotEmpty).toList();
-        });
+    if (_isSuperadmin) {
+      try {
+        final admins = await ApiService.getAdmin();
+        if (mounted) {
+          setState(() {
+            _adminList = admins.map((e) => e['username'] ?? '').where((u) => u.isNotEmpty).toList();
+          });
+        }
+      } catch (e) {
+        debugPrint('Gagal fetch admin: $e');
       }
-    } catch (e) {
-      debugPrint('Gagal fetch admin: $e');
     }
     _fetchRiwayat();
   }
@@ -110,6 +124,70 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
           const SnackBar(content: Text('Tidak dapat membuka foto')),
         );
       }
+    }
+  }
+
+  Future<void> _batalkanTransaksi(RiwayatTransaksi t) async {
+    if (t.rowIndex <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Index baris tidak valid, coba muat ulang riwayat.')),
+      );
+      return;
+    }
+
+    final konfirmasi = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Batalkan Transaksi?'),
+        content: Text(
+          'Transaksi dari "${t.dari}" ke "${t.ke}" pada '
+          '${DateFormat('dd MMM yyyy, HH:mm').format(t.timestamp)} '
+          'akan dibatalkan dan stok akan dikembalikan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Ya, Batalkan', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (konfirmasi != true || !mounted) return;
+
+    setState(() => _loading = true);
+
+    try {
+      final result = await ApiService.batalkanTransaksi(rowIndex: t.rowIndex);
+      if (!mounted) return;
+      if (result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Transaksi berhasil dibatalkan'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _fetchRiwayat();
+      } else {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Gagal membatalkan transaksi'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -186,7 +264,8 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
                       )
                   ],
                 ),
-                if (_adminList.isNotEmpty) ...[
+                // Filter PIC: Superadmin bisa pilih, Admin biasa hanya lihat miliknya
+                if (_isSuperadmin && _adminList.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -222,12 +301,24 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
                       ),
                     ],
                   ),
+                ] else if (!_isSuperadmin) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.person_pin, color: Color(0xFF2563EB), size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Menampilkan transaksi milik: ${widget.picName}',
+                        style: const TextStyle(color: Color(0xFF2563EB), fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
                 ]
               ],
             ),
           ),
           const Divider(height: 1),
-          
+
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -267,7 +358,7 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
                             separatorBuilder: (context, index) => const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final t = _transaksi[index];
-                              
+
                               // Filter barang yang lebih dari 0
                               final activeItems = t.items.entries
                                   .where((e) => e.value > 0)
@@ -296,32 +387,67 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFEFF6FF),
-                                              borderRadius: BorderRadius.circular(6),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(Icons.person_outline, size: 14, color: Color(0xFF2563EB)),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  t.oleh.isEmpty ? 'Tidak diketahui' : t.oleh,
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Color(0xFF2563EB),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFEFF6FF),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(Icons.person_outline, size: 14, color: Color(0xFF2563EB)),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      t.oleh.isEmpty ? 'Tidak diketahui' : t.oleh,
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: Color(0xFF2563EB),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              // Tombol Batalkan — hanya Superadmin
+                                              if (_isSuperadmin) ...[
+                                                const SizedBox(width: 8),
+                                                InkWell(
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  onTap: () => _batalkanTransaksi(t),
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFFFFF0F0),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: const Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Icon(Icons.undo_rounded, size: 14, color: Colors.red),
+                                                        SizedBox(width: 4),
+                                                        Text(
+                                                          'Batalkan',
+                                                          style: TextStyle(
+                                                            fontSize: 12,
+                                                            fontWeight: FontWeight.w600,
+                                                            color: Colors.red,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
                                                   ),
                                                 ),
                                               ],
-                                            ),
-                                          )
+                                            ],
+                                          ),
                                         ],
                                       ),
                                       const SizedBox(height: 12),
-                                      
+
                                       // Rute: Dari -> Ke
                                       Row(
                                         children: [
@@ -360,7 +486,7 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
                                         padding: EdgeInsets.symmetric(vertical: 12),
                                         child: Divider(height: 1),
                                       ),
-                                      
+
                                       // Item list
                                       const Text(
                                         'Barang yang dipindah:',
@@ -371,7 +497,7 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
                                         const Text('-', style: TextStyle(color: Colors.black54))
                                       else
                                         ...activeItems.map(_buildItemText),
-                                      
+
                                       // Foto button
                                       if (t.fotoUrl.isNotEmpty && t.fotoUrl != 'N/A') ...[
                                         const SizedBox(height: 16),

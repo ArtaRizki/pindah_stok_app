@@ -37,8 +37,126 @@ class ApiService {
     return data.map((e) => {
       'username': e['username']?.toString() ?? '',
       'password': e['password']?.toString() ?? '',
+      'role': e['role']?.toString() ?? 'admin',
     }).toList();
   }
+
+  // ─────────────────────────────────────────────
+  // POST: Tambah Admin (Superadmin only)
+  // ─────────────────────────────────────────────
+  static Future<Map<String, dynamic>> tambahAdmin({
+    required String username,
+    required String password,
+    String role = 'admin',
+  }) async {
+    final res = await _request(
+      'POST',
+      baseUrl,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'apiKey': apiKey,
+        'action': 'tambahAdmin',
+        'username': username,
+        'password': password,
+        'role': role,
+      }),
+    );
+    return _decodeJson(res);
+  }
+
+  // ─────────────────────────────────────────────
+  // POST: Edit Admin (Superadmin only)
+  // ─────────────────────────────────────────────
+  static Future<Map<String, dynamic>> editAdmin({
+    required String username,
+    String? newPassword,
+    String? newRole,
+  }) async {
+    final res = await _request(
+      'POST',
+      baseUrl,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'apiKey': apiKey,
+        'action': 'editAdmin',
+        'username': username,
+        if (newPassword != null) 'newPassword': newPassword,
+        if (newRole != null) 'newRole': newRole,
+      }),
+    );
+    return _decodeJson(res);
+  }
+
+  // ─────────────────────────────────────────────
+  // POST: Hapus Admin (Superadmin only)
+  // ─────────────────────────────────────────────
+  static Future<Map<String, dynamic>> hapusAdmin({
+    required String username,
+  }) async {
+    final res = await _request(
+      'POST',
+      baseUrl,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'apiKey': apiKey,
+        'action': 'hapusAdmin',
+        'username': username,
+      }),
+    );
+    return _decodeJson(res);
+  }
+
+  // ─────────────────────────────────────────────
+  // POST: Koreksi Stok (Superadmin only)
+  // ─────────────────────────────────────────────
+  static Future<Map<String, dynamic>> koreksiStok({
+    required String lokasi,
+    required String jenis,
+    required int jumlahBaru,
+  }) async {
+    final res = await _request(
+      'POST',
+      baseUrl,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'apiKey': apiKey,
+        'action': 'koreksiStok',
+        'lokasi': lokasi,
+        'jenis': jenis,
+        'jumlahBaru': jumlahBaru,
+      }),
+    );
+    return _decodeJson(res);
+  }
+
+  // ─────────────────────────────────────────────
+  // POST: Batalkan Transaksi (Superadmin only)
+  // ─────────────────────────────────────────────
+  static Future<Map<String, dynamic>> batalkanTransaksi({
+    required int rowIndex,
+  }) async {
+    final res = await _request(
+      'POST',
+      baseUrl,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'apiKey': apiKey,
+        'action': 'batalkanTransaksi',
+        'rowIndex': rowIndex,
+      }),
+    );
+    return _decodeJson(res);
+  }
+
+  static Map<String, dynamic> _decodeJson(http.Response res) {
+    try {
+      return jsonDecode(res.body);
+    } catch (e) {
+      final snippet = res.body.length > 200 ? res.body.substring(0, 200) : res.body;
+      throw Exception('Format response tidak valid (bukan JSON). Response: $snippet');
+    }
+  }
+
 
   // ─────────────────────────────────────────────
   // GET: Stok per lokasi per jenis

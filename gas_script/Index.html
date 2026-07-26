@@ -161,6 +161,7 @@
               <div class="ml-2 sm:ml-6 flex items-center space-x-1 sm:space-x-4">
                 <a href="#" onclick="switchView('dashboard')" id="nav-dashboard" class="nav-item text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md text-xs sm:text-sm font-medium bg-indigo-800">Pindah Stok</a>
                 <a href="#" onclick="switchView('history')" id="nav-history" class="nav-item text-indigo-200 hover:bg-indigo-600 hover:text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors">Riwayat</a>
+                <a href="#" onclick="switchView('users')" id="nav-users" class="nav-item text-indigo-200 hover:bg-indigo-600 hover:text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-colors hidden" style="display:none">Kelola Pengguna</a>
               </div>
             </div>
 
@@ -416,7 +417,7 @@
                   class="w-full border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-3 text-sm border bg-slate-50"
                 />
               </div>
-              <div>
+              <div id="picFilterWrapper">
                 <label
                   class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2"
                   >Petugas (PIC)</label
@@ -461,36 +462,12 @@
               <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50">
                   <tr>
-                    <th
-                      scope="col"
-                      class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider"
-                    >
-                      Waktu
-                    </th>
-                    <th
-                      scope="col"
-                      class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider"
-                    >
-                      PIC
-                    </th>
-                    <th
-                      scope="col"
-                      class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider"
-                    >
-                      Rute
-                    </th>
-                    <th
-                      scope="col"
-                      class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider"
-                    >
-                      Detail Barang
-                    </th>
-                    <th
-                      scope="col"
-                      class="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider"
-                    >
-                      Bukti
-                    </th>
+                    <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Waktu</th>
+                    <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">PIC</th>
+                    <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Rute</th>
+                    <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Detail Barang</th>
+                    <th scope="col" class="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Bukti</th>
+                    <th scope="col" id="batalkanHeader" class="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider" style="display:none">Batalkan</th>
                   </tr>
                 </thead>
                 <tbody
@@ -544,7 +521,8 @@
         document.getElementById("filterStart").valueAsDate = lastWeek;
       }
 
-      function fetchAdminList() {
+      function fetchAdminList(isSuperadmin) {
+        if (!isSuperadmin) return; // Admin biasa tidak perlu daftar admin
         google.script.run
           .withSuccessHandler((admins) => {
             const sel = document.getElementById("filterPic");
@@ -565,14 +543,36 @@
         const user = localStorage.getItem("pindah_stok_user");
         if (user) {
           const userData = JSON.parse(user);
+          const isSuperadmin = userData.role === 'superadmin';
           document.getElementById("user-info").textContent =
-            "Halo, " + userData.username;
+            "Halo, " + userData.username + (isSuperadmin ? " ⭐" : "");
           document.getElementById("oleh").value = userData.username;
+
+          // Tampilkan/sembunyikan UI berdasarkan role
+          const picFilter = document.getElementById("picFilterWrapper");
+          const batalkanHeader = document.getElementById("batalkanHeader");
+          const navUsers = document.getElementById("nav-users");
+
+          if (isSuperadmin) {
+            if (picFilter) picFilter.style.display = "";
+            if (batalkanHeader) batalkanHeader.style.display = "";
+            if (navUsers) navUsers.style.display = "";
+          } else {
+            if (picFilter) picFilter.style.display = "none";
+            if (batalkanHeader) batalkanHeader.style.display = "none";
+            if (navUsers) navUsers.style.display = "none";
+            // Auto-lock filter PIC ke username sendiri
+            const filterPic = document.getElementById("filterPic");
+            if (filterPic) {
+              filterPic.innerHTML = '<option value="' + userData.username + '">' + userData.username + '</option>';
+              filterPic.value = userData.username;
+            }
+          }
 
           document.getElementById("login-view").classList.add("hidden");
           document.getElementById("app-wrapper").classList.remove("hidden");
 
-          fetchAdminList();
+          fetchAdminList(isSuperadmin);
           switchView("dashboard");
         } else {
           document.getElementById("login-view").classList.remove("hidden");
@@ -1021,17 +1021,37 @@
       // -------------------------
       // HISTORY LOGIC
       // -------------------------
+      function batalkanTransaksi(rowIndex, dari, ke) {
+        if (!confirm('Batalkan transaksi dari "' + dari + '" ke "' + ke + '"?\nStok akan dikembalikan ke posisi semula.')) return;
+        google.script.run
+          .withSuccessHandler((res) => {
+            if (res.success) {
+              showAlert(res.message || 'Transaksi berhasil dibatalkan');
+              loadHistory();
+            } else {
+              showAlert(res.message || 'Gagal membatalkan transaksi', true);
+            }
+          })
+          .withFailureHandler((err) => {
+            showAlert('Error: ' + err.message, true);
+          })
+          .webBatalkanTransaksi(rowIndex);
+      }
+
       function loadHistory() {
         const btn = document.getElementById("btnRefreshHistory");
         const tbody = document.getElementById("historyTableBody");
+        const user = JSON.parse(localStorage.getItem("pindah_stok_user") || '{}');
+        const isSuperadmin = user.role === 'superadmin';
 
         const startDate = document.getElementById("filterStart").value;
         const endDate = document.getElementById("filterEnd").value;
-        const pic = document.getElementById("filterPic").value;
+        // Admin biasa: ambil username sendiri; Superadmin: ambil dari dropdown
+        const pic = isSuperadmin ? document.getElementById("filterPic").value : (user.username || '');
 
         if (btn) btn.innerHTML = "Memuat...";
         tbody.innerHTML =
-          '<tr><td colspan="5" class="px-6 py-12 text-center text-slate-400">Sedang menarik data...</td></tr>';
+          '<tr><td colspan="6" class="px-6 py-12 text-center text-slate-400">Sedang menarik data...</td></tr>';
 
         google.script.run
           .withSuccessHandler((res) => {
@@ -1042,7 +1062,7 @@
             tbody.innerHTML = "";
             if (!res || res.length === 0) {
               tbody.innerHTML =
-                '<tr><td colspan="5" class="px-6 py-12 text-center text-slate-500 font-medium">Data tidak ditemukan pada rentang tanggal tersebut.</td></tr>';
+                '<tr><td colspan="6" class="px-6 py-12 text-center text-slate-500 font-medium">Data tidak ditemukan pada rentang tanggal tersebut.</td></tr>';
               return;
             }
 
@@ -1067,6 +1087,10 @@
                   '" target="_blank" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center shadow-sm border border-indigo-100">Lihat Foto</a>'
                 : '<span class="text-slate-400 text-xs italic">-</span>';
 
+              const batalkanBtn = isSuperadmin && row.rowIndex
+                ? '<button onclick="batalkanTransaksi(' + row.rowIndex + ', \'' + (row.dari||'').replace(/'/g,"\\'") + '\', \'' + (row.ke||'').replace(/'/g,"\\'") + '\')" class="text-red-600 hover:text-red-900 bg-red-50 px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center shadow-sm border border-red-100">↩ Batalkan</button>'
+                : isSuperadmin ? '<span class="text-slate-400 text-xs italic">-</span>' : '';
+
               tbody.innerHTML +=
                 '<tr class="' +
                 bgClass +
@@ -1090,6 +1114,7 @@
                 '<td class="px-6 py-5 whitespace-nowrap text-center">' +
                 linkFoto +
                 "</td>" +
+                (isSuperadmin ? '<td class="px-6 py-5 whitespace-nowrap text-center">' + batalkanBtn + "</td>" : '') +
                 "</tr>";
             });
           })
@@ -1099,7 +1124,7 @@
                 '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg> Cari / Filter';
             showAlert("Gagal memuat riwayat: " + err.message, true);
             tbody.innerHTML =
-              '<tr><td colspan="5" class="px-6 py-12 text-center text-red-500 font-medium">Error: ' +
+              '<tr><td colspan="6" class="px-6 py-12 text-center text-red-500 font-medium">Error: ' +
               err.message +
               "</td></tr>";
           })

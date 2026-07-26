@@ -51,6 +51,7 @@ class RiwayatTransaksi {
   final String oleh;
   final String fotoUrl;
   final Map<String, int> items;
+  final int rowIndex; // nomor baris di sheet Transaksi (untuk fitur batalkan)
 
   RiwayatTransaksi({
     required this.timestamp,
@@ -59,6 +60,7 @@ class RiwayatTransaksi {
     required this.oleh,
     required this.fotoUrl,
     required this.items,
+    this.rowIndex = 0,
   });
 
   /// Total qty yang dipindah dalam transaksi ini.
@@ -93,6 +95,7 @@ class RiwayatTransaksi {
       oleh:      json['oleh']?.toString() ?? 'Tidak diketahui',
       fotoUrl:   json['fotoUrl']?.toString() ?? '',
       items:     parsedItems,
+      rowIndex:  (json['rowIndex'] as num?)?.toInt() ?? 0,
     );
   }
 }

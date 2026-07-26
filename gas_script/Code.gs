@@ -432,7 +432,11 @@ function webGetStok() {
 function webGetRiwayat(limit, startDate, endDate, pic) {
   const riwayat = getRiwayat(limit, startDate, endDate, pic);
   // Konversi object Date ke String agar google.script.run tidak gagal serialize (mengembalikan null)
-  return riwayat.map((r) => {
+  // rowIndex = nomor baris aktual di sheet Transaksi (untuk keperluan batalkan transaksi)
+  const trxSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TRANSAKSI);
+  const lastRow = trxSheet ? trxSheet.getLastRow() : 0;
+
+  return riwayat.map((r, i) => {
     return {
       timestamp: r.timestamp && r.timestamp.toISOString ? r.timestamp.toISOString() : r.timestamp,
       dari: r.dari,
@@ -440,6 +444,8 @@ function webGetRiwayat(limit, startDate, endDate, pic) {
       oleh: r.oleh || "-",
       fotoUrl: r.fotoUrl,
       items: r.items,
+      // rowIndex untuk batalkan: karena getRiwayat me-reverse urutan, kalkulasi rowIndex dari belakang
+      rowIndex: lastRow - i,
     };
   });
 }
@@ -472,5 +478,161 @@ function webLogin(username, password) {
     };
   } else {
     return { success: false, message: "Username atau password salah" };
+  }
+}
+
+// ============================================
+// FUNGSI SUPERADMIN
+// ============================================
+
+function webTambahAdmin(username, password, role) {
+  if (!username || !password) {
+    return { success: false, message: "Username dan password wajib diisi" };
+  }
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_ADMIN);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_ADMIN);
+    sheet.appendRow(["Username", "Password", "Role"]);
+    sheet.getRange("A1:C1").setFontWeight("bold");
+  }
+  // Cek apakah username sudah ada
+  const existing = getAdmin().find((a) => a.username.toLowerCase() === username.toLowerCase());
+  if (existing) {
+    return { success: false, message: "Username \"" + username + "\" sudah ada" };
+  }
+  sheet.appendRow([username.trim(), password.trim(), (role || "admin").toLowerCase()]);
+  return { success: true, message: "Admin \"" + username + "\" berhasil ditambahkan" };
+}
+
+function webEditAdmin(username, newPassword, newRole) {
+  if (!username) return { success: false, message: "Username wajib diisi" };
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_ADMIN);
+  if (!sheet) return { success: false, message: "Sheet Admin tidak ditemukan" };
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0].toString().toLowerCase() === username.toLowerCase()) {
+      if (newPassword) sheet.getRange(i + 1, 2).setValue(newPassword.trim());
+      if (newRole) sheet.getRange(i + 1, 3).setValue(newRole.toLowerCase());
+      return { success: true, message: "Admin \"" + username + "\" berhasil diperbarui" };
+    }
+  }
+  return { success: false, message: "Username \"" + username + "\" tidak ditemukan" };
+}
+
+function webHapusAdmin(username) {
+  if (!username) return { success: false, message: "Username wajib diisi" };
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_ADMIN);
+  if (!sheet) return { success: false, message: "Sheet Admin tidak ditemukan" };
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0].toString().toLowerCase() === username.toLowerCase()) {
+      sheet.deleteRow(i + 1);
+      return { success: true, message: "Admin \"" + username + "\" berhasil dihapus" };
+    }
+  }
+  return { success: false, message: "Username \"" + username + "\" tidak ditemukan" };
+}
+
+function webKoreksiStok(lokasi, jenis, jumlahBaru) {
+  if (!lokasi || !jenis || jumlahBaru === undefined || jumlahBaru === null) {
+    return { success: false, message: "Lokasi, jenis, dan jumlah wajib diisi" };
+  }
+  const jumlah = Number(jumlahBaru);
+  if (isNaN(jumlah) || jumlah < 0) {
+    return { success: false, message: "Jumlah harus berupa angka positif" };
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const stokSheet = getOrCreateStokSheet();
+    const data = stokSheet.getDataRange().getValues();
+    const headers = data[0];
+
+    let lokasiRow = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === lokasi) { lokasiRow = i; break; }
+    }
+    if (lokasiRow === -1) return { success: false, message: "Lokasi \"" + lokasi + "\" tidak ditemukan" };
+
+    let jenisCol = headers.indexOf(jenis);
+    if (jenisCol === -1) {
+      jenisCol = headers.length;
+      stokSheet.getRange(1, jenisCol + 1).setValue(jenis);
+    }
+
+    const jumlahLama = Number(data[lokasiRow][jenisCol]) || 0;
+    stokSheet.getRange(lokasiRow + 1, jenisCol + 1).setValue(jumlah);
+
+    return { success: true, message: "Stok " + jenis + " di " + lokasi + " diubah dari " + jumlahLama + " menjadi " + jumlah };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function webBatalkanTransaksi(rowIndex) {
+  // rowIndex = nomor baris di sheet Transaksi (1-based, termasuk header)
+  if (!rowIndex || rowIndex < 2) return { success: false, message: "Index baris tidak valid" };
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const trxSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TRANSAKSI);
+    if (!trxSheet) return { success: false, message: "Sheet Transaksi tidak ditemukan" };
+
+    const data = trxSheet.getDataRange().getValues();
+    if (rowIndex > data.length) return { success: false, message: "Baris tidak ditemukan" };
+
+    const headers = data[0];
+    const row = data[rowIndex - 1]; // Convert 1-based ke 0-based
+
+    const dariIdx = headers.indexOf("Dari");
+    const keIdx = headers.indexOf("Ke");
+
+    const dari = row[dariIdx];
+    const ke = row[keIdx];
+
+    // Kembalikan stok: dari += qty, ke -= qty
+    const stokSheet = getOrCreateStokSheet();
+    const stokData = stokSheet.getDataRange().getValues();
+    const stokHeaders = stokData[0];
+
+    let barisDari = -1, barisKe = -1;
+    for (let i = 1; i < stokData.length; i++) {
+      if (stokData[i][0] === dari) barisDari = i;
+      if (stokData[i][0] === ke) barisKe = i;
+    }
+
+    // Kembalikan setiap item
+    for (let c = 0; c < headers.length; c++) {
+      const colName = headers[c];
+      if (FIXED_TRX_COLS.includes(colName) || !colName) continue;
+      const qty = Number(row[c]) || 0;
+      if (qty === 0) continue;
+
+      const stokColIdx = stokHeaders.indexOf(colName);
+      if (stokColIdx === -1) continue;
+
+      if (barisDari !== -1) {
+        const stokDariNow = Number(stokData[barisDari][stokColIdx]) || 0;
+        stokSheet.getRange(barisDari + 1, stokColIdx + 1).setValue(stokDariNow + qty);
+      }
+      if (barisKe !== -1) {
+        const stokKeNow = Number(stokData[barisKe][stokColIdx]) || 0;
+        stokSheet.getRange(barisKe + 1, stokColIdx + 1).setValue(Math.max(0, stokKeNow - qty));
+      }
+    }
+
+    // Hapus baris transaksi
+    trxSheet.deleteRow(rowIndex);
+
+    return { success: true, message: "Transaksi berhasil dibatalkan dan stok dikembalikan" };
+  } finally {
+    lock.releaseLock();
   }
 }

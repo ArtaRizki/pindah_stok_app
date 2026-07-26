@@ -11,6 +11,8 @@ import 'screens/transfer_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
 import 'screens/riwayat_transaksi_screen.dart';
+import 'screens/kelola_pengguna_screen.dart';
+import 'screens/koreksi_stok_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -76,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _lastUpdated;
   Timer? _timer;
   String _role = 'admin';
+  String _picName = '';
 
   final _numFormat = NumberFormat.decimalPattern('id_ID');
 
@@ -110,6 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _role = prefs.getString('pic_role') ?? 'admin';
+      _picName = prefs.getString('pic_name') ?? '';
     });
   }
 
@@ -343,7 +347,10 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const RiwayatTransaksiScreen(),
+                  builder: (_) => RiwayatTransaksiScreen(
+                    role: _role,
+                    picName: _picName,
+                  ),
                 ),
               );
             },
@@ -372,13 +379,47 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             UserAccountsDrawerHeader(
               decoration: const BoxDecoration(color: Color(0xFF2563EB)),
-              accountName: Text('Login sebagai PIC: $_role', style: const TextStyle(fontWeight: FontWeight.bold)),
-              accountEmail: null,
+              accountName: Text(
+                _picName.isNotEmpty ? _picName : 'Pengguna',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              accountEmail: Text(
+                _role == 'superadmin' ? '⭐ Superadmin' : 'Admin Biasa',
+                style: const TextStyle(fontSize: 12),
+              ),
               currentAccountPicture: const CircleAvatar(
                 backgroundColor: Colors.white,
                 child: Icon(Icons.person, color: Color(0xFF2563EB), size: 40),
               ),
             ),
+            // Menu Superadmin
+            if (_role == 'superadmin') ...[
+              ListTile(
+                leading: const Icon(Icons.people_rounded, color: Color(0xFF2563EB)),
+                title: const Text('Kelola Pengguna'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const KelolaPenggunaScreen()),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit_note_rounded, color: Color(0xFF2563EB)),
+                title: const Text('Koreksi Stok'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => KoreksiStokScreen(daftarLokasi: _daftarLokasi),
+                    ),
+                  ).then((_) => _muatData());
+                },
+              ),
+              const Divider(),
+            ],
             ListTile(
               leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
               title: const Text('Logout', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
