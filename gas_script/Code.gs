@@ -357,7 +357,7 @@ function prosesPindahStok(body) {
     
     // Update keterangan di Stok
     if (keterangan && barisKe !== -1) {
-      const ketIdx = headerStok.indexOf("Keterangan");
+      const ketIdx = getColIdx(headerStok, "Keterangan");
       if (ketIdx !== -1) {
         stokSheet.getRange(barisKe + 1, ketIdx + 1).setValue(keterangan);
       }
