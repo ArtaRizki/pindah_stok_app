@@ -32,6 +32,7 @@ class _TransferScreenState extends State<TransferScreen> {
   
   bool _tambahLokasiBaru = false;
   final _lokasiBaruController = TextEditingController();
+  final _keteranganController = TextEditingController();
   
   String _picName = 'Tidak diketahui';
 
@@ -53,6 +54,7 @@ class _TransferScreenState extends State<TransferScreen> {
   @override
   void dispose() {
     _lokasiBaruController.dispose();
+    _keteranganController.dispose();
     for (final c in _qtyControllers.values) {
       c.dispose();
     }
@@ -175,6 +177,7 @@ class _TransferScreenState extends State<TransferScreen> {
         ke:          tujuanAkhir,
         quantities:  _quantities,
         oleh:        _picName,
+        keterangan:  _keteranganController.text.trim(),
         fotoBase64:  fotoBase64,
         fotoMimeType: 'image/jpeg',
       );
@@ -231,6 +234,7 @@ class _TransferScreenState extends State<TransferScreen> {
             ),
             const SizedBox(height: 6),
             ...qtys.map((e) => _baris(e.key, '${e.value} pcs')),
+            _baris('Keterangan', _keteranganController.text.trim().isEmpty ? '-' : _keteranganController.text.trim()),
             _baris('Foto', _fotoSuratJalan == null ? 'Tidak ada' : 'Terlampir'),
           ],
         ),
@@ -466,6 +470,39 @@ class _TransferScreenState extends State<TransferScreen> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 24),
+            
+            // ── SECTION: Keterangan (Opsional) ──
+            _buildSectionTitle('KETERANGAN / STATUS (OPSIONAL)'),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: TextFormField(
+                controller: _keteranganController,
+                textCapitalization: TextCapitalization.sentences,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  hintText: 'Misal: Dimuat ke mobil A',
+                  hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+              ),
             ),
             const SizedBox(height: 24),
 

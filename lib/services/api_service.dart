@@ -203,6 +203,7 @@ class ApiService {
     required String ke,
     required Map<String, int> quantities,
     required String oleh,
+    String? keterangan,
     String? fotoBase64,
     String? fotoMimeType,
   }) async {
@@ -217,6 +218,7 @@ class ApiService {
         'ke':     ke,
         'qty':    quantities,
         'oleh':   oleh,
+        'keterangan': keterangan,
         'fotoBase64':   fotoBase64,
         'fotoMimeType': fotoMimeType,
       }),

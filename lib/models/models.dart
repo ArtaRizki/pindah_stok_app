@@ -13,10 +13,12 @@ const List<String> jenisFiberBox = [
 // ─────────────────────────────────────────────
 class LokasiStok {
   final String lokasi;
+  final String? status;
   final Map<String, int> items;
 
   LokasiStok({
     required this.lokasi,
+    this.status,
     required this.items,
   });
 
@@ -36,6 +38,7 @@ class LokasiStok {
 
     return LokasiStok(
       lokasi: json['lokasi']?.toString() ?? '',
+      status: json['status']?.toString(),
       items: parsedItems,
     );
   }
@@ -48,19 +51,21 @@ class RiwayatTransaksi {
   final DateTime timestamp;
   final String dari;
   final String ke;
-  final String oleh;
-  final String fotoUrl;
+  final String? oleh;
+  final String? fotoUrl;
+  final String? keterangan;
   final Map<String, int> items;
-  final int rowIndex; // nomor baris di sheet Transaksi (untuk fitur batalkan)
+  final int? rowIndex;
 
   RiwayatTransaksi({
     required this.timestamp,
     required this.dari,
     required this.ke,
-    required this.oleh,
-    required this.fotoUrl,
     required this.items,
-    this.rowIndex = 0,
+    this.oleh,
+    this.fotoUrl,
+    this.keterangan,
+    this.rowIndex,
   });
 
   /// Total qty yang dipindah dalam transaksi ini.
@@ -92,10 +97,11 @@ class RiwayatTransaksi {
       timestamp: ts,
       dari:      json['dari']?.toString() ?? '',
       ke:        json['ke']?.toString() ?? '',
-      oleh:      json['oleh']?.toString() ?? 'Tidak diketahui',
-      fotoUrl:   json['fotoUrl']?.toString() ?? '',
+      oleh:      json['oleh']?.toString(),
+      fotoUrl:   json['fotoUrl']?.toString(),
+      keterangan: json['keterangan']?.toString(),
       items:     parsedItems,
-      rowIndex:  (json['rowIndex'] as num?)?.toInt() ?? 0,
+      rowIndex:  json['rowIndex'] != null ? int.tryParse(json['rowIndex'].toString()) : null,
     );
   }
 }

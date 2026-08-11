@@ -22,7 +22,8 @@ const INITIAL_JENIS_FIBER = [
   "GLOBAL",
   "SCI",
 ];
-const FIXED_TRX_COLS = ["Timestamp", "Dari", "Ke", "PIC", "FotoURL"];
+const FIXED_TRX_COLS = ["Timestamp", "Dari", "Ke", "PIC", "Keterangan", "FotoURL"];
+const FIXED_STOK_COLS = ["Lokasi", "Keterangan"];
 
 function doGet(e) {
   try {
@@ -126,18 +127,23 @@ function getStok() {
   if (data.length <= 1) return [];
 
   const headers = data[0];
+  const lokasiIdx = headers.indexOf("Lokasi");
+  const ketIdx = headers.indexOf("Keterangan");
 
   return data
     .slice(1)
     .filter((r) => r[0])
     .map((r) => {
       const items = {};
-      for (let j = 1; j < headers.length; j++) {
+      for (let j = 0; j < headers.length; j++) {
         const key = headers[j].toString().trim();
-        if (key) items[key] = Number(r[j]) || 0;
+        if (key && !FIXED_STOK_COLS.includes(key)) {
+          items[key] = Number(r[j]) || 0;
+        }
       }
       return {
-        lokasi: r[0]?.toString() ?? "",
+        lokasi: r[lokasiIdx]?.toString() ?? "",
+        status: ketIdx !== -1 ? r[ketIdx]?.toString() : "",
         items: items,
       };
     });
@@ -161,6 +167,7 @@ function getRiwayat(limit, startDateStr, endDateStr, picStr) {
   let olehIdx = headers.indexOf("PIC");
   if (olehIdx === -1) olehIdx = headers.indexOf("Oleh");
   
+  const ketIdx = headers.indexOf("Keterangan");
   const fotoIdx = headers.indexOf("FotoURL");
 
   const startDate = startDateStr ? new Date(startDateStr) : null;
@@ -195,6 +202,7 @@ function getRiwayat(limit, startDateStr, endDateStr, picStr) {
       dari: r[dariIdx],
       ke: r[keIdx],
       oleh: r[olehIdx],
+      keterangan: ketIdx !== -1 ? r[ketIdx] : "",
       fotoUrl: r[fotoIdx],
       items: items,
     });
@@ -207,6 +215,7 @@ function prosesPindahStok(body) {
   const ke = body.ke;
   const qtyMap = body.qty;
   const oleh = body.oleh || "Tidak diketahui";
+  const keterangan = body.keterangan || "";
 
   if (!dari || !ke || !qtyMap) {
     return {
@@ -329,6 +338,14 @@ function prosesPindahStok(body) {
         .getRange(barisKe + 1, item.kolomIdx + 1)
         .setValue(stokKeLama + item.qty);
     }
+    
+    // Update keterangan di Stok
+    if (keterangan && barisKe !== -1) {
+      const ketIdx = headerStok.indexOf("Keterangan");
+      if (ketIdx !== -1) {
+        stokSheet.getRange(barisKe + 1, ketIdx + 1).setValue(keterangan);
+      }
+    }
 
     const trxSheet = getOrCreateTransaksiSheet();
     const trxData = trxSheet.getDataRange().getValues();
@@ -353,6 +370,10 @@ function prosesPindahStok(body) {
     newRowTrx[trxHeader.indexOf("Dari")] = dari;
     newRowTrx[trxHeader.indexOf("Ke")] = ke;
     newRowTrx[trxHeader.indexOf("PIC")] = oleh;
+    
+    const trxKetIdx = trxHeader.indexOf("Keterangan");
+    if (trxKetIdx !== -1) newRowTrx[trxKetIdx] = keterangan;
+    
     newRowTrx[trxHeader.indexOf("FotoURL")] = fotoUrl;
 
     for (const item of itemsDipindah) {
@@ -376,7 +397,14 @@ function getOrCreateStokSheet() {
   let sheet = ss.getSheetByName(SHEET_STOK);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_STOK);
-    sheet.appendRow(["Lokasi", ...INITIAL_JENIS_FIBER]);
+    sheet.appendRow(["Lokasi", "Keterangan", ...INITIAL_JENIS_FIBER]);
+  } else {
+    // Migrasi: tambahkan kolom Keterangan jika belum ada
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 1).getValues()[0];
+    if (!headers.includes("Keterangan")) {
+      sheet.insertColumnAfter(1);
+      sheet.getRange(1, 2).setValue("Keterangan");
+    }
   }
   return sheet;
 }
@@ -391,9 +419,21 @@ function getOrCreateTransaksiSheet() {
       "Dari",
       "Ke",
       "PIC",
+      "Keterangan",
       "FotoURL",
       ...INITIAL_JENIS_FIBER,
     ]);
+  } else {
+    // Migrasi: Tambahkan kolom Keterangan di sebelah kanan PIC
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 1).getValues()[0];
+    if (!headers.includes("Keterangan")) {
+      let picIdx = headers.indexOf("PIC");
+      if (picIdx === -1) picIdx = headers.indexOf("Oleh");
+      if (picIdx !== -1) {
+        sheet.insertColumnAfter(picIdx + 1);
+        sheet.getRange(1, picIdx + 2).setValue("Keterangan");
+      }
+    }
   }
   return sheet;
 }
@@ -442,6 +482,7 @@ function webGetRiwayat(limit, startDate, endDate, pic) {
       dari: r.dari,
       ke: r.ke,
       oleh: r.oleh || "-",
+      keterangan: r.keterangan || "",
       fotoUrl: r.fotoUrl,
       items: r.items,
       // rowIndex untuk batalkan: karena getRiwayat me-reverse urutan, kalkulasi rowIndex dari belakang
@@ -454,13 +495,14 @@ function webGetAdmin() {
   return getAdmin();
 }
 
-function webProsesPindahStok(dari, ke, qty, oleh, fotoBase64, fotoMimeType) {
+function webProsesPindahStok(dari, ke, qty, oleh, keterangan, fotoBase64, fotoMimeType) {
   // Kita bypass pengecekan apiKey di backend karena akses web sudah dilindungi oleh autentikasi Google akun yang mengakses Web App ini.
   return prosesPindahStok({
     dari: dari,
     ke: ke,
     qty: qty,
     oleh: oleh,
+    keterangan: keterangan,
     fotoBase64: fotoBase64,
     fotoMimeType: fotoMimeType,
   });
@@ -625,6 +667,14 @@ function webBatalkanTransaksi(rowIndex) {
       if (barisKe !== -1) {
         const stokKeNow = Number(stokData[barisKe][stokColIdx]) || 0;
         stokSheet.getRange(barisKe + 1, stokColIdx + 1).setValue(Math.max(0, stokKeNow - qty));
+      }
+    }
+
+    // Update keterangan di Stok
+    if (keterangan && barisKe !== -1) {
+      const ketIdx = stokHeaders.indexOf("Keterangan");
+      if (ketIdx !== -1) {
+        stokSheet.getRange(barisKe + 1, ketIdx + 1).setValue(keterangan);
       }
     }
 

@@ -128,7 +128,7 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
   }
 
   Future<void> _batalkanTransaksi(RiwayatTransaksi t) async {
-    if (t.rowIndex <= 0) {
+    if (t.rowIndex == null || t.rowIndex! <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Index baris tidak valid, coba muat ulang riwayat.')),
       );
@@ -163,7 +163,7 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
     setState(() => _loading = true);
 
     try {
-      final result = await ApiService.batalkanTransaksi(rowIndex: t.rowIndex);
+      final result = await ApiService.batalkanTransaksi(rowIndex: t.rowIndex!);
       if (!mounted) return;
       if (result['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -402,7 +402,7 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
                                                     const Icon(Icons.person_outline, size: 14, color: Color(0xFF2563EB)),
                                                     const SizedBox(width: 4),
                                                     Text(
-                                                      t.oleh.isEmpty ? 'Tidak diketahui' : t.oleh,
+                                                      (t.oleh?.isEmpty ?? true) ? 'Tidak diketahui' : t.oleh!,
                                                       style: const TextStyle(
                                                         fontSize: 12,
                                                         fontWeight: FontWeight.w600,
@@ -482,6 +482,25 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
                                           ),
                                         ],
                                       ),
+                                      if (t.keterangan != null && t.keterangan!.isNotEmpty) ...[
+                                        const SizedBox(height: 12),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.amber.shade50,
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            'Keterangan: ${t.keterangan}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.amber.shade900,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                       const Padding(
                                         padding: EdgeInsets.symmetric(vertical: 12),
                                         child: Divider(height: 1),
@@ -499,13 +518,13 @@ class _RiwayatTransaksiScreenState extends State<RiwayatTransaksiScreen> {
                                         ...activeItems.map(_buildItemText),
 
                                       // Foto button
-                                      if (t.fotoUrl.isNotEmpty && t.fotoUrl != 'N/A') ...[
+                                      if (t.fotoUrl != null && t.fotoUrl!.isNotEmpty && t.fotoUrl != 'N/A') ...[
                                         const SizedBox(height: 16),
                                         SizedBox(
                                           width: double.infinity,
                                           height: 40,
                                           child: OutlinedButton.icon(
-                                            onPressed: () => _bukaFoto(t.fotoUrl),
+                                            onPressed: () => _bukaFoto(t.fotoUrl!),
                                             icon: const Icon(Icons.image_outlined, size: 18),
                                             label: const Text('Lihat Surat Jalan'),
                                             style: OutlinedButton.styleFrom(
