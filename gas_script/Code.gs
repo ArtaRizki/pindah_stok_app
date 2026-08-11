@@ -25,6 +25,22 @@ const INITIAL_JENIS_FIBER = [
 const FIXED_TRX_COLS = ["Timestamp", "Dari", "Ke", "PIC", "Keterangan", "FotoURL"];
 const FIXED_STOK_COLS = ["Lokasi", "Keterangan"];
 
+function getColIdx(headers, name) {
+  const n = name.toLowerCase();
+  for (let i = 0; i < headers.length; i++) {
+    if (headers[i] && headers[i].toString().trim().toLowerCase() === n) return i;
+  }
+  return -1;
+}
+
+function isFixedStokCol(name) {
+  return FIXED_STOK_COLS.some(c => c.toLowerCase() === name.toLowerCase());
+}
+
+function isFixedTrxCol(name) {
+  return FIXED_TRX_COLS.some(c => c.toLowerCase() === name.toLowerCase());
+}
+
 function doGet(e) {
   try {
     // 1. CEK AKSES WEB BROWSER
@@ -127,8 +143,8 @@ function getStok() {
   if (data.length <= 1) return [];
 
   const headers = data[0];
-  const lokasiIdx = headers.indexOf("Lokasi");
-  const ketIdx = headers.indexOf("Keterangan");
+  const lokasiIdx = getColIdx(headers, "Lokasi");
+  const ketIdx = getColIdx(headers, "Keterangan");
 
   return data
     .slice(1)
@@ -137,12 +153,12 @@ function getStok() {
       const items = {};
       for (let j = 0; j < headers.length; j++) {
         const key = headers[j].toString().trim();
-        if (key && !FIXED_STOK_COLS.includes(key)) {
+        if (key && !isFixedStokCol(key)) {
           items[key] = Number(r[j]) || 0;
         }
       }
       return {
-        lokasi: r[lokasiIdx]?.toString() ?? "",
+        lokasi: (lokasiIdx !== -1 ? r[lokasiIdx] : r[0])?.toString() ?? "",
         status: ketIdx !== -1 ? r[ketIdx]?.toString() : "",
         items: items,
       };
@@ -159,16 +175,16 @@ function getRiwayat(limit, startDateStr, endDateStr, picStr) {
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
 
-  const tsIdx = headers.indexOf("Timestamp");
-  const dariIdx = headers.indexOf("Dari");
-  const keIdx = headers.indexOf("Ke");
+  const tsIdx = getColIdx(headers, "Timestamp");
+  const dariIdx = getColIdx(headers, "Dari");
+  const keIdx = getColIdx(headers, "Ke");
   
   // Tangani perubahan nama kolom dari "Oleh" menjadi "PIC"
-  let olehIdx = headers.indexOf("PIC");
-  if (olehIdx === -1) olehIdx = headers.indexOf("Oleh");
+  let olehIdx = getColIdx(headers, "PIC");
+  if (olehIdx === -1) olehIdx = getColIdx(headers, "Oleh");
   
-  const ketIdx = headers.indexOf("Keterangan");
-  const fotoIdx = headers.indexOf("FotoURL");
+  const ketIdx = getColIdx(headers, "Keterangan");
+  const fotoIdx = getColIdx(headers, "FotoURL");
 
   const startDate = startDateStr ? new Date(startDateStr) : null;
   const endDate = endDateStr ? new Date(endDateStr) : null;
@@ -193,7 +209,7 @@ function getRiwayat(limit, startDateStr, endDateStr, picStr) {
     const items = {};
     for (let j = 0; j < headers.length; j++) {
       const colName = headers[j];
-      if (!FIXED_TRX_COLS.includes(colName) && colName) {
+      if (colName && !isFixedTrxCol(colName)) {
         items[colName] = Number(r[j]) || 0;
       }
     }
@@ -352,8 +368,8 @@ function prosesPindahStok(body) {
     const trxHeader = trxData[0];
 
     for (const item of itemsDipindah) {
-      if (trxHeader.indexOf(item.jenis) === -1) {
-        const picIndex = trxHeader.indexOf("PIC");
+      if (getColIdx(trxHeader, item.jenis) === -1) {
+        const picIndex = getColIdx(trxHeader, "PIC");
         if (picIndex !== -1) {
           trxSheet.insertColumnBefore(picIndex + 1);
           trxSheet.getRange(1, picIndex + 1).setValue(item.jenis);
@@ -366,15 +382,15 @@ function prosesPindahStok(body) {
     }
 
     const newRowTrx = new Array(trxHeader.length).fill("");
-    newRowTrx[trxHeader.indexOf("Timestamp")] = new Date();
-    newRowTrx[trxHeader.indexOf("Dari")] = dari;
-    newRowTrx[trxHeader.indexOf("Ke")] = ke;
-    newRowTrx[trxHeader.indexOf("PIC")] = oleh;
+    newRowTrx[getColIdx(trxHeader, "Timestamp")] = new Date();
+    newRowTrx[getColIdx(trxHeader, "Dari")] = dari;
+    newRowTrx[getColIdx(trxHeader, "Ke")] = ke;
+    newRowTrx[getColIdx(trxHeader, "PIC")] = oleh;
     
-    const trxKetIdx = trxHeader.indexOf("Keterangan");
+    const trxKetIdx = getColIdx(trxHeader, "Keterangan");
     if (trxKetIdx !== -1) newRowTrx[trxKetIdx] = keterangan;
     
-    newRowTrx[trxHeader.indexOf("FotoURL")] = fotoUrl;
+    newRowTrx[getColIdx(trxHeader, "FotoURL")] = fotoUrl;
 
     for (const item of itemsDipindah) {
       newRowTrx[trxHeader.indexOf(item.jenis)] = item.qty;
@@ -401,7 +417,7 @@ function getOrCreateStokSheet() {
   } else {
     // Migrasi: tambahkan kolom Keterangan jika belum ada
     const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 1).getValues()[0];
-    if (!headers.includes("Keterangan")) {
+    if (getColIdx(headers, "Keterangan") === -1) {
       sheet.insertColumnAfter(1);
       sheet.getRange(1, 2).setValue("Keterangan");
     }
@@ -426,9 +442,9 @@ function getOrCreateTransaksiSheet() {
   } else {
     // Migrasi: Tambahkan kolom Keterangan di sebelah kanan PIC
     const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 1).getValues()[0];
-    if (!headers.includes("Keterangan")) {
-      let picIdx = headers.indexOf("PIC");
-      if (picIdx === -1) picIdx = headers.indexOf("Oleh");
+    if (getColIdx(headers, "Keterangan") === -1) {
+      let picIdx = getColIdx(headers, "PIC");
+      if (picIdx === -1) picIdx = getColIdx(headers, "Oleh");
       if (picIdx !== -1) {
         sheet.insertColumnAfter(picIdx + 1);
         sheet.getRange(1, picIdx + 2).setValue("Keterangan");
@@ -653,7 +669,7 @@ function webBatalkanTransaksi(rowIndex) {
     // Kembalikan setiap item
     for (let c = 0; c < headers.length; c++) {
       const colName = headers[c];
-      if (FIXED_TRX_COLS.includes(colName) || !colName) continue;
+      if (isFixedTrxCol(colName) || !colName) continue;
       const qty = Number(row[c]) || 0;
       if (qty === 0) continue;
 
@@ -672,7 +688,7 @@ function webBatalkanTransaksi(rowIndex) {
 
     // Update keterangan di Stok
     if (keterangan && barisKe !== -1) {
-      const ketIdx = stokHeaders.indexOf("Keterangan");
+      const ketIdx = getColIdx(stokHeaders, "Keterangan");
       if (ketIdx !== -1) {
         stokSheet.getRange(barisKe + 1, ketIdx + 1).setValue(keterangan);
       }
