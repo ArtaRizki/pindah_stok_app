@@ -338,6 +338,25 @@
                     </div>
                   </div>
 
+                  <!-- SECTION: KETERANGAN -->
+                  <div>
+                    <h3
+                      class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4"
+                    >
+                      KETERANGAN / STATUS
+                    </h3>
+                    <div
+                      class="bg-slate-50 p-5 rounded-xl border border-slate-200"
+                    >
+                      <input
+                        type="text"
+                        id="keterangan"
+                        class="w-full border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-3 text-sm border bg-white"
+                        placeholder="Opsional (mis: dalam perjalanan)"
+                      />
+                    </div>
+                  </div>
+
                   <!-- SECTION: BUKTI -->
                   <div>
                     <h3
@@ -821,6 +840,7 @@
                     '<div class="flex flex-wrap">' +
                     detailText.join("") +
                     "</div>" +
+                    (row.status ? '<div class="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs flex items-center text-amber-800"><svg class="w-4 h-4 mr-1 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'+row.status+'</div>' : '') +
                     "</div>";
                 }
               });
@@ -852,6 +872,7 @@
         const dari = document.getElementById("dari").value;
         let ke = document.getElementById("ke").value;
         const oleh = document.getElementById("oleh").value;
+        const keterangan = document.getElementById("keterangan").value.trim();
         const foto =
           document.getElementById("foto").files.length > 0
             ? "Terlampir"
@@ -900,6 +921,9 @@
           '<div class="flex justify-between py-1"><span class="text-slate-500 w-24">PIC</span><span class="font-bold text-slate-800">' +
           oleh +
           "</span></div>" +
+          '<div class="flex justify-between py-1"><span class="text-slate-500 w-24">Keterangan</span><span class="font-bold text-slate-800">' +
+          (keterangan ? keterangan : "-") +
+          "</span></div>" +
           '<hr class="my-3">' +
           '<div class="font-bold text-slate-800 mb-2">Barang dipindahkan:</div>' +
           '<div class="bg-slate-50 p-3 rounded-lg border border-slate-200">' +
@@ -929,6 +953,7 @@
         if (ke === "__TAMBAH_BARU__")
           ke = document.getElementById("lokasiBaru").value.trim();
         const oleh = document.getElementById("oleh").value;
+        const keterangan = document.getElementById("keterangan").value.trim();
 
         let qtyMap = {};
         document.querySelectorAll(".qty-input").forEach((input) => {
@@ -952,6 +977,7 @@
               ke,
               qtyMap,
               oleh,
+              keterangan,
               base64Data,
               mimeType,
               btnSubmit,
@@ -965,6 +991,7 @@
             ke,
             qtyMap,
             oleh,
+            keterangan,
             null,
             null,
             btnSubmit,
@@ -978,6 +1005,7 @@
         ke,
         qtyMap,
         oleh,
+        keterangan,
         fotoBase64,
         fotoMimeType,
         btnSubmit,
@@ -993,6 +1021,7 @@
               document.getElementById("dari").value = "";
               document.getElementById("ke").value = "";
               document.getElementById("foto").value = "";
+              document.getElementById("keterangan").value = "";
               document.getElementById("lokasiBaru").value = "";
               handleKeChange(); // Sembunyikan input baru
               document
@@ -1013,6 +1042,7 @@
             ke,
             qtyMap,
             oleh,
+            keterangan,
             fotoBase64,
             fotoMimeType,
           );
@@ -1107,6 +1137,7 @@
                 '</span> <svg class="w-4 h-4 mx-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg> <span class="font-bold text-emerald-700">' +
                 row.ke +
                 "</span></div>" +
+                (row.keterangan ? '<div class="mt-2 text-xs text-amber-800 bg-amber-50 px-2 py-1.5 rounded-lg border border-amber-200 inline-block font-medium"><svg class="w-3.5 h-3.5 inline mr-1 text-amber-600 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>' + row.keterangan + '</div>' : '') +
                 "</td>" +
                 '<td class="px-6 py-5 text-sm max-w-xs flex-wrap">' +
                 itemsHtml.join("") +
