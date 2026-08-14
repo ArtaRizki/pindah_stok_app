@@ -227,6 +227,9 @@ class ApiService {
     try {
       return jsonDecode(res.body);
     } catch (e) {
+      if (res.body.contains('<!DOCTYPE html>')) {
+        throw Exception('Server menolak permintaan (mungkin ukuran data/foto terlalu besar). Silakan coba lagi.');
+      }
       final snippet = res.body.length > 200 ? res.body.substring(0, 200) : res.body;
       throw Exception('Format response tidak valid (bukan JSON). Response: $snippet');
     }

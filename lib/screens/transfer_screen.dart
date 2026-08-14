@@ -169,6 +169,13 @@ class _TransferScreenState extends State<TransferScreen> {
       String? fotoBase64;
       if (_fotoSuratJalan != null) {
         final bytes = await _fotoSuratJalan!.readAsBytes();
+        // Cek ukuran file maksimal 3MB (3 * 1024 * 1024 bytes)
+        // Jika melebihi batas, Apps Script bisa menolak request dan mengembalikan error HTML
+        if (bytes.length > 3 * 1024 * 1024) {
+          setState(() => _loading = false);
+          _tampilkanPesan('Ukuran foto terlalu besar (Maksimal 3MB). Silakan kompres atau pilih foto lain.');
+          return;
+        }
         fotoBase64 = base64Encode(bytes);
       }
 

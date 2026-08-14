@@ -197,7 +197,7 @@ function getRiwayat(limit, startDateStr, endDateStr, picStr) {
     if (startDate && ts < startDate) continue;
     if (endDate && ts > endDate) continue;
     if (picStr && r[olehIdx] !== picStr) continue;
-    filteredData.push(r);
+    filteredData.push({ rowData: r, rowIndex: i + 1 });
   }
 
   const numRows = Math.min(limit, filteredData.length);
@@ -205,7 +205,8 @@ function getRiwayat(limit, startDateStr, endDateStr, picStr) {
 
   const result = [];
   for (let i = filteredData.length - 1; i >= startRow; i--) {
-    const r = filteredData[i];
+    const item = filteredData[i];
+    const r = item.rowData;
     const items = {};
     for (let j = 0; j < headers.length; j++) {
       const colName = headers[j];
@@ -214,6 +215,7 @@ function getRiwayat(limit, startDateStr, endDateStr, picStr) {
       }
     }
     result.push({
+      rowIndex: item.rowIndex,
       timestamp: r[tsIdx],
       dari: r[dariIdx],
       ke: r[keIdx],
