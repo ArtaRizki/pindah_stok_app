@@ -93,6 +93,21 @@ function doPost(e) {
     if (body.action === "pindahStok") {
       return jsonResponse(prosesPindahStok(body));
     }
+    if (body.action === "batalkanTransaksi") {
+      return jsonResponse(webBatalkanTransaksi(body.rowIndex));
+    }
+    if (body.action === "koreksiStok") {
+      return jsonResponse(webKoreksiStok(body.lokasi, body.jenis, body.jumlahBaru));
+    }
+    if (body.action === "tambahAdmin") {
+      return jsonResponse(webTambahAdmin(body.username, body.password, body.role));
+    }
+    if (body.action === "editAdmin") {
+      return jsonResponse(webEditAdmin(body.username, body.newPassword, body.newRole));
+    }
+    if (body.action === "hapusAdmin") {
+      return jsonResponse(webHapusAdmin(body.username));
+    }
     return jsonResponse({ success: false, message: "Action tidak dikenal" });
   } catch (err) {
     return jsonResponse({ success: false, message: err.toString() });
